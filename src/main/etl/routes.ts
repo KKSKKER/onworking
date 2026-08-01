@@ -106,50 +106,38 @@ export function registerETLRoutes(
     const dbDir = pathMod.join(folderPath, '.onworking', 'db');
     const dbPath = pathMod.join(dbDir, 'onworking.db');
 
-    if (!fs.existsSync(sourceDir)) throw new Error('source/ not found in folder');
+    if (!fs.existsSync(sourceDir)) throw new Error('source/ not found');
 
-    // 1. Read BigTable settings from the folder's settings.json
-    const settingsPath = pathMod.join(folderPath, 'settings.json');
-    if (!fs.existsSync(settingsPath)) throw new Error(`settings.json not found in folder: ${folderPath}`);
-    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')) as {
-      name?: string;
-      tableName?: string;
-      autoIncrementId?: boolean;
-      fields?: { name: string; type?: string; order?: number; isPrimaryKey?: boolean }[];
-    };
-
-    const settingsFields = (settings.fields ?? [])
-      .filter(f => f && f.name)
-      .map(f => ({ name: f.name, type: (f.type ?? 'string') as string, isPrimaryKey: !!f.isPrimaryKey }));
-    if (settingsFields.length === 0) throw new Error('BigTable has no fields configured');
+    // 1. Read settings.json
+    const settings = JSON.parse(fs.readFileSync(pathMod.join(folderPath, 'settings.json'), 'utf-8'));
+    const settingsFields = (settings.fields ?? []).filter((f: any) => f && f.name);
+    if (settingsFields.length === 0) throw new Error('No fields in settings.json');
 
     const autoIncrementId = !!settings.autoIncrementId;
     const rawTableName = (settings.tableName || settings.name || pathMod.basename(folderPath)).trim();
     const tableName = rawTableName.replace(/[^a-zA-Z0-9一-鿿_]/g, '_').toLowerCase() || 'bigtable';
 
-    // 2. Delete old DB file, create a fresh one
+    // 2. Fresh DB
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
-
     const { DBConnection } = await import('../db/connection');
     const folderDb = new DBConnection(dbPath);
 
-    // 3. Create the target table with the BigTable schema
+    // 3. Create table
     const typeMap: Record<string, string> = { string: 'TEXT', cents: 'INTEGER', number: 'REAL', date: 'TEXT' };
-    const colDefs = settingsFields.map(f => `"${f.name}" ${typeMap[f.type] ?? 'TEXT'}`);
+    const colDefs = settingsFields.map((f: any) => `"${f.name}" ${typeMap[f.type] ?? 'TEXT'}`);
     const sourceCols = '"__source_file" TEXT, "__source_row" INTEGER, "__extracted_at" TEXT';
-
     let createSQL: string;
     if (autoIncrementId) {
       createSQL = `CREATE TABLE "${tableName}" (id INTEGER PRIMARY KEY AUTOINCREMENT, ${colDefs.join(', ')}, ${sourceCols})`;
     } else {
-      const pkFields = settingsFields.filter(f => f.isPrimaryKey).map(f => `"${f.name}"`);
+      const pkFields = settingsFields.filter((f: any) => f.isPrimaryKey).map((f: any) => `"${f.name}"`);
       const pkClause = pkFields.length > 0 ? `, PRIMARY KEY (${pkFields.join(', ')})` : '';
       createSQL = `CREATE TABLE "${tableName}" (${colDefs.join(', ')}, ${sourceCols}${pkClause})`;
     }
     await folderDb.exec(createSQL);
 
-    // 4. Scan source files
+    // 4. Scan files
     const files: string[] = [];
     const walk = (dir: string): void => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -160,7 +148,7 @@ export function registerETLRoutes(
     };
     walk(sourceDir);
 
-    // 5. Load rules — folder rules first, then workspace rules
+    // 5. Load rules
     const { RuleStore } = await import('../rules/rule-store');
     const allRules: RuleDefinition[] = [];
     const folderStore = new RuleStore(rulesDir);
@@ -172,82 +160,76 @@ export function registerETLRoutes(
       }
     }
 
-    // 6. Parse each file and insert directly with strict sourceHeader matching
+    // 6. Process each file: parse, map columns, insert
     const parser = new ExcelParser();
-
     let totalRows = 0;
     const fileStats: { file: string; rows: number; error?: string }[] = [];
-    const columnNames = settingsFields.map(f => f.name);
+    const columnNames: string[] = settingsFields.map((f: any) => f.name);
     const allCols = [...columnNames, '__source_file', '__source_row', '__extracted_at'];
-    const placeholders = allCols.map(() => '?').join(', ');
-    const insertSQL = `INSERT INTO "${tableName}" (${allCols.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
+    const insertSQL = `INSERT INTO "${tableName}" (${allCols.map(c => `"${c}"`).join(', ')}) VALUES (${allCols.map(() => '?').join(', ')})`;
     const extractedAt = new Date().toISOString();
 
     for (const file of files) {
       const fileName = pathMod.basename(file);
       const relPath = pathMod.relative(sourceDir, file).replace(/\\/g, '/');
       const rule = allRules.find(r => {
-        const pattern = r.sources[0]?.pattern;
-        const match = pattern && matchFolderRule(relPath, pattern);
-        console.log('[mergeFolder] rule=' + r.name + ' pattern=' + pattern + ' relPath=' + relPath + ' match=' + match);
-        return match;
+        const pat = r.sources[0]?.pattern;
+        return pat ? expandBraces(pat).some(p => matchGlob(relPath, p)) : false;
       });
-      console.log('[mergeFolder] file=' + fileName + ' matched rule=' + (rule ? rule.name : 'NONE'));
       if (!rule) {
         fileStats.push({ file: fileName, rows: 0, error: 'No matching rule' });
         continue;
       }
       try {
-        const source = rule.sources[0];
-        const config = defaultParseConfig(file, source.sheetIndex ?? 0, source.headerRow);
-        config.sheetName = source.sheetName;
-        const chunks = parser.parse(file, config);
+        // Parse Excel
+        const src = rule.sources[0];
+        const cfg = defaultParseConfig(file, src.sheetIndex ?? 0, src.headerRow);
+        cfg.sheetName = src.sheetName;
+        const chunks = parser.parse(file, cfg);
 
-        // Build included field list sorted by order
+        // Build field mapping: outputName -> sourceHeader + type from YAML
         const includedFields = rule.fields
-          .filter(f => f.included && f.sourceHeader)
-          .sort((a, b) => a.order - b.order);
+          .filter((f: any) => f.included && f.sourceHeader)
+          .sort((a: any, b: any) => a.order - b.order);
 
-        // Collect Excel column names from the first chunk for validation
+        // Validate sourceHeaders exist in Excel
         const excelHeaders = new Set<string>();
         if (chunks.length > 0 && chunks[0].rows.length > 0) {
-          Object.keys(chunks[0].rows[0]).forEach(k => excelHeaders.add(k));
+          for (const k of Object.keys(chunks[0].rows[0])) excelHeaders.add(k);
         }
-
-        // Validate: every included sourceHeader must exist in the Excel file
-        for (const field of includedFields) {
-          if (field.sourceHeader && !excelHeaders.has(field.sourceHeader)) {
-            const available = [...excelHeaders].map(h => `"${h}"`).join(', ');
-            throw new Error(
-              `列名 "${field.sourceHeader}" 在文件 "${fileName}" 中不存在。` +
-              `Excel 实际列名: [${available}]`
-            );
+        for (const f of includedFields) {
+          if (!excelHeaders.has(f.sourceHeader!)) {
+            throw new Error(`列名 "${f.sourceHeader!}" 在 "${fileName}" 中不存在。可用: ${[...excelHeaders].join(', ')}`);
           }
         }
 
-        // Build lookup: outputName → { sourceHeader, transforms }
-        const fieldMap = new Map<string, { sourceHeader: string; transforms: typeof includedFields[0]['transforms'] }>();
+        // Build lookup: outputName -> sourceHeader
+        const fieldLookup = new Map<string, string>();
         for (const f of includedFields) {
-          if (f.sourceHeader) fieldMap.set(f.outputName, { sourceHeader: f.sourceHeader, transforms: f.transforms });
+          fieldLookup.set(f.outputName, f.sourceHeader!);
         }
 
+        // Insert rows
         let fileRows = 0;
         for (const chunk of chunks) {
-          let chunkRowIdx = 0;
+          let ri = 0;
           for (const row of chunk.rows) {
-            const values: (string | bigint | number | null)[] = columnNames.map(col => {
-              const mapping = fieldMap.get(col);
-              if (!mapping) return null;
-              const cell = row[mapping.sourceHeader];
-              if (!cell || cell.raw === '' || cell.raw === undefined) return null;
-              return applyTransforms(cell.raw, mapping.transforms);
+            const vals: (string | number | null)[] = columnNames.map(col => {
+              const srcHeader = fieldLookup.get(col);
+              if (!srcHeader) return null;
+              const cell = row[srcHeader];
+              if (!cell) return null;
+              const raw = cell.raw?.trim();
+              if (!raw) return null;
+              // Simple type conversion based on settings field type
+              const fieldType = settingsFields.find((f: any) => f.name === col)?.type ?? 'string';
+              return coerceValue(raw, fieldType);
             });
-            const sourceRow = (chunk.locator.detail.chunkStart as number ?? 0) + chunkRowIdx;
-            values.push(file, sourceRow, extractedAt);
-            await folderDb.run(insertSQL, values);
+            vals.push(file, (chunk.locator.detail.chunkStart as number ?? 0) + ri, extractedAt);
+            await folderDb.run(insertSQL, vals);
             totalRows++;
             fileRows++;
-            chunkRowIdx++;
+            ri++;
           }
         }
         fileStats.push({ file: fileName, rows: fileRows });
@@ -261,127 +243,26 @@ export function registerETLRoutes(
   }, { description: 'Extract all source files in a folder into a single BigTable table' });
 }
 
-// --- Inline transform helpers (replaces TransformEngine for mergeFolder) ---
+// --- Simple value coercion based on YAML field type ---
 
-interface MergeFieldTransform {
-  kind: string;
-  trim?: boolean;
-  lowercase?: boolean;
-  uppercase?: boolean;
-  maxLength?: number;
-  nullValues?: string[];
-  outputType?: string;
-  emptyAs?: string;
-  negativePattern?: string;
-  thousandsSeparator?: string;
-  decimalSeparator?: string;
-  mapping?: Record<string, string>;
-  unmappedStrategy?: string;
-  caseSensitive?: boolean;
-  trueValues?: string[];
-  falseValues?: string[];
-}
-
-function applyTransforms(rawValue: string, transforms: MergeFieldTransform[]): string | bigint | null {
-  let current: string | bigint | null = rawValue;
-
-  // Sort transforms by standard order
-  const sorted = [...transforms].sort((a, b) => {
-    const orderA = TRANSFORM_KIND_ORDER[a.kind] ?? 99;
-    const orderB = TRANSFORM_KIND_ORDER[b.kind] ?? 99;
-    return orderA - orderB;
-  });
-
-  for (const t of sorted) {
-    switch (t.kind) {
-      case 'coerce_string': {
-        let s: string = String(current ?? '');
-        if (t.trim) s = s.trim();
-        if (t.lowercase) s = s.toLowerCase();
-        if (t.uppercase) s = s.toUpperCase();
-        if (t.nullValues?.includes(s)) { current = null; }
-        else if (t.maxLength && s.length > t.maxLength) s = s.slice(0, t.maxLength);
-        if (current !== null) current = s;
-        break;
-      }
-      case 'coerce_number': {
-        let s = String(current ?? '').trim();
-        if (s === '' || s === '-') {
-          current = t.outputType === 'cents'
-            ? (t.emptyAs === '0' ? 0n : null)
-            : (t.emptyAs === '0' ? '0' : null);
-          break;
-        }
-        let sign = 1n;
-        if (t.negativePattern === 'parentheses') {
-          const m = s.match(/^\((.+)\)$/);
-          if (m) { s = m[1]; sign = -1n; }
-        } else if (t.negativePattern === 'trailing_dash') {
-          if (s.endsWith('-')) s = '-' + s.slice(0, -1);
-        }
-        if (t.negativePattern === 'leading_dash' && s.startsWith('-')) {
-          sign = -1n; s = s.slice(1);
-        }
-        if (t.thousandsSeparator) s = s.replaceAll(t.thousandsSeparator, '');
-        if (t.decimalSeparator && t.decimalSeparator !== '.') s = s.replace(t.decimalSeparator, '.');
-        if (t.outputType === 'cents') {
-          const dot = s.indexOf('.');
-          if (dot === -1) { current = BigInt(s) * 100n * sign; }
-          else {
-            const intPart = s.slice(0, dot) || '0';
-            let frac = s.slice(dot + 1).slice(0, 2).padEnd(2, '0');
-            current = (BigInt(intPart) * 100n + BigInt(frac)) * sign;
-          }
-        } else {
-          current = sign === -1n ? '-' + s : s;
-        }
-        break;
-      }
-      case 'coerce_date': {
-        current = String(current ?? '');
-        break;
-      }
-      case 'coerce_enum': {
-        const s: string = String(current ?? '');
-        if (t.mapping?.[s]) { current = t.mapping[s]; }
-        else if (t.unmappedStrategy === 'null') { current = null; }
-        else if (t.unmappedStrategy === 'error') {
-          throw new Error(`Enum value "${s}" not in mapping`);
-        }
-        break;
-      }
-      case 'coerce_boolean': {
-        const s = String(current ?? '');
-        const cmp = t.caseSensitive ? s : s.toLowerCase();
-        const trues = t.caseSensitive ? (t.trueValues ?? []) : (t.trueValues ?? []).map(v => v.toLowerCase());
-        const falses = t.caseSensitive ? (t.falseValues ?? []) : (t.falseValues ?? []).map(v => v.toLowerCase());
-        if (trues.includes(cmp)) { current = 'true'; }
-        else if (falses.includes(cmp)) { current = 'false'; }
-        else { current = null; }
-        break;
-      }
-      default:
-        throw new Error(`Transform kind "${t.kind}" is not supported in mergeFolder`);
+function coerceValue(raw: string, type: string): string | number | null {
+  switch (type) {
+    case 'cents':
+    case 'number': {
+      // Strip thousands separators (commas), parse as number
+      const cleaned = raw.replace(/,/g, '').replace(/，/g, '');
+      const num = Number(cleaned);
+      if (isNaN(num)) return null;
+      return type === 'cents' ? Math.round(num * 100) : num;
     }
+    case 'date':
+    case 'string':
+    default:
+      return raw;
   }
-  return current;
 }
 
-const TRANSFORM_KIND_ORDER: Record<string, number> = {
-  fill_down: 1, rename: 2,
-  coerce_string: 3, coerce_number: 3, coerce_date: 3, coerce_enum: 3, coerce_boolean: 3,
-  split_to_columns: 4, extract: 4, split_by_sign: 4,
-  derive: 5, filter_rows: 6,
-};
-
-/**
- * Match a rule's source pattern against a file path (forward-slash normalized).
- * Handles brace alternation (e.g. globs like "*.{xls,xlsx,csv}") by expanding to
- * multiple globs, then delegates to the shared matchGlob util.
- */
-function matchFolderRule(filePath: string, pattern: string): boolean {
-  return expandBraces(pattern).some(p => matchGlob(filePath, p));
-}
+// --- Glob matching helpers ---
 
 function expandBraces(pattern: string): string[] {
   const start = pattern.indexOf('{');
