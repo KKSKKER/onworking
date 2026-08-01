@@ -47,3 +47,10 @@ export class APIRouter {
 }
 
 export const apiRouter = new APIRouter();
+
+// ---- 注册内置命令 ----
+apiRouter.register('api:list', async () => apiRouter.listCommands().map(c => c.command), { description: 'List all registered API commands' });
+apiRouter.register('workspace.listFiles', async () => [], { description: 'List files in workspace source directory' });
+apiRouter.register('rule.list', async () => [], { description: 'List all extraction rules' });
+apiRouter.register('db.getTables', async () => [], { description: 'List all database tables' });
+apiRouter.register('entity.list', async () => [], { description: 'List all defined entities' });

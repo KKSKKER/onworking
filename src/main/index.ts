@@ -1,7 +1,19 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
+import { apiRouter } from './api/router';
 
 let mainWindow: BrowserWindow | null = null;
+
+function setupIPC(): void {
+  ipcMain.handle('api:call', async (_event, command: string, params?: Record<string, unknown>) => {
+    try {
+      const result = await apiRouter.call(command, params);
+      return { success: true, data: result };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -15,14 +27,18 @@ function createWindow(): void {
     title: 'OnWorking',
   });
 
-  if (process.env.NODE_ENV === 'development') {
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+  if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  setupIPC();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

@@ -2,7 +2,7 @@
   "name": "onworking",
   "version": "0.1.0",
   "description": "AI 数据工作的透明执行框架",
-  "main": "dist/main/index.js",
+  "main": "dist/main/main/index.js",
   "scripts": {
     "start": "npm run build:main && concurrently \"npm run dev:renderer\" \"wait-on http://localhost:5173 && electron .\"",
     "build:main": "tsc -p tsconfig.main.json",
