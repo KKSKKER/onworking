@@ -1,6 +1,6 @@
 // onworking/src/renderer/components/View2Preview.tsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useTableConfig, useTableConfigStore } from '../state/TableConfigStore';
+import { useTableConfig } from '../state/TableConfigStore';
 
 interface PreviewCell { v: string | number | boolean | null; t?: string }
 interface PreviewSnapshot {
@@ -10,14 +10,11 @@ interface PreviewSnapshot {
 
 interface View2PreviewProps {
   filePath: string;
-  onETLComplete: (result: Record<string, unknown>) => void;
 }
 
-export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLComplete }) => {
+export const View2Preview: React.FC<View2PreviewProps> = ({ filePath }) => {
   const config = useTableConfig(filePath);
-  const { selectedRule } = useTableConfigStore();
   const [status, setStatus] = useState('');
-  const [executing, setExecuting] = useState(false);
   const [snapshot, setSnapshot] = useState<PreviewSnapshot | null>(null);
 
   const headerRow = config?.headerRow ?? 1;
@@ -47,25 +44,6 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLCompl
     return () => { if (previewTimer.current) clearTimeout(previewTimer.current); };
   }, [filePath, headerRow, loadPreview]);
 
-  const executeImport = async () => {
-    setExecuting(true);
-    setStatus('导入中...');
-    const ruleName = selectedRule || (config?.ruleName || '');
-    if (!ruleName) {
-      setStatus('错误: 请先在 View1 中保存/选择规则');
-      setExecuting(false);
-      return;
-    }
-    const res = await window.onworking.api.call('etl.execute', { ruleName });
-    if (res.success) {
-      setStatus('导入完成!');
-      onETLComplete(res.data as Record<string, unknown>);
-    } else {
-      setStatus(`错误: ${res.error}`);
-    }
-    setExecuting(false);
-  };
-
   const previewRows = snapshot ? snapshot.rows.slice(0, 50) : [];
 
   return (
@@ -76,10 +54,6 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLCompl
         <span>表头行: <input type="number" value={headerRow} onChange={e => config?.setHeaderRow(Number(e.target.value))}
           style={{ width: 50, padding: '2px 4px' }} /></span>
         <button onClick={loadPreview} style={{ padding: '2px 8px' }}>加载预览</button>
-        <button onClick={executeImport} disabled={executing}
-          style={{ padding: '2px 12px', background: '#28a745', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
-          {executing ? '导入中...' : '▶ 执行导入'}
-        </button>
         <span style={{ color: '#666' }}>{status}</span>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>

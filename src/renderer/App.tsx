@@ -52,15 +52,7 @@ export const App: React.FC = () => {
           <View1Config onPreview={() => setActiveView('preview')} />
         )}
         {activeView === 'preview' && (
-          <View2Preview
-            filePath={selectedFile}
-            onETLComplete={(result) => {
-              setETLResult(result);
-              setLastETL(new Date().toLocaleTimeString());
-              setStatus('ETL 完成');
-              setActiveView('results');
-            }}
-          />
+          <View2Preview filePath={selectedFile} />
         )}
         {activeView === 'results' && (
           <View3Results etlResult={etlResult} />
