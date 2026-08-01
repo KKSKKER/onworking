@@ -15,7 +15,7 @@ export const View3Results: React.FC<View3ResultsProps> = ({ etlResult }) => {
   useEffect(() => {
     window.onworking.api.call('db.getTables').then(res => {
       if (res.success) {
-        const allTables = (res.data as string[]).filter(t => t.startsWith('etl_'));
+        const allTables = (res.data as string[]).filter(t => t !== '_lineage' && !t.startsWith('sqlite_'));
         setTables(allTables);
         if (allTables.length > 0) setSelectedTable(allTables[0]);
       }
