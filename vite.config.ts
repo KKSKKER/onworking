@@ -15,4 +15,20 @@ export default defineConfig({
       '@common': path.resolve(__dirname, 'src/common'),
     },
   },
+  css: {
+    // Univer ships its own CSS; ensure it's processed
+    devSourcemap: true,
+  },
+  optimizeDeps: {
+    // Pre-bundle Univer packages for dev performance
+    include: [
+      '@univerjs/core',
+      '@univerjs/design',
+      '@univerjs/engine-formula',
+      '@univerjs/sheets',
+      '@univerjs/ui',
+      '@univerjs/sheets-formula',
+      '@univerjs/sheets-ui',
+    ],
+  },
 });
