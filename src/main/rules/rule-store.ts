@@ -95,9 +95,8 @@ export function autoGenerateRule(
     throw new Error('No sheets available to auto-generate rule');
   }
 
-  // Detect file extension pattern
-  const ext = path.extname(filePath);
-  const pattern = `**/*${ext}`;
+  // Use filename-based pattern so the rule only matches its source file
+  const pattern = `**/${fileName}`;
 
   const source: RuleSource = {
     pattern,

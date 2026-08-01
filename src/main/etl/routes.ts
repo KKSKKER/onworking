@@ -97,51 +97,14 @@ export function registerETLRoutes(
     return { rows, total, limit: l, offset: o };
   }, { description: 'Get paginated data from an ETL table' });
 
-  router.register('etl.buildMasterTable', async () => {
-    const rootDir = workspace.root;
-    if (!fs.existsSync(rootDir)) throw new Error('Workspace root not found');
-
-    // Scan for BigTable folders (dirs containing settings.json and .onworking/db/onworking.db)
-    const bigTableFolders: string[] = [];
-    for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
-      if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'source') continue;
-      const settingsPath = path.join(rootDir, entry.name, 'settings.json');
-      const dbPath = path.join(rootDir, entry.name, '.onworking', 'db', 'onworking.db');
-      if (fs.existsSync(settingsPath) && fs.existsSync(dbPath)) {
-        bigTableFolders.push(entry.name);
-      }
-    }
-
-    const synced: string[] = [];
-    for (const folderName of bigTableFolders) {
-      const folderDbPath = path.join(rootDir, folderName, '.onworking', 'db', 'onworking.db');
-      const escapedPath = folderDbPath.replace(/\\/g, '/').replace(/'/g, "''");
-      try {
-        // ATTACH folder DB and copy all its tables to workspace DB
-        await db.exec(`ATTACH DATABASE '${escapedPath}' AS __bt`);
-        const rows = await db.execute("SELECT name FROM __bt.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_%'");
-        for (const row of rows as { name: string }[]) {
-          const tName = row.name;
-          await db.exec(`DROP TABLE IF EXISTS "${tName}"`);
-          await db.exec(`CREATE TABLE "${tName}" AS SELECT * FROM __bt."${tName}"`);
-          synced.push(tName);
-        }
-        await db.exec('DETACH DATABASE __bt');
-      } catch (e) {
-        console.error(`Failed to sync folder ${folderName}:`, e);
-      }
-    }
-
-    return { syncedTables: synced, folderCount: bigTableFolders.length };
-  }, { description: 'Build master table in workspace DB from all BigTable folder DBs' });
-
   router.register('etl.mergeFolder', async (params) => {
     const { folderPath } = params as { folderPath: string };
     const fs = await import('node:fs');
     const pathMod = await import('node:path');
     const sourceDir = pathMod.join(folderPath, 'source');
     const rulesDir = pathMod.join(folderPath, '.onworking', 'rules');
-    const dbPath = pathMod.join(folderPath, '.onworking', 'db', 'onworking.db');
+    const dbDir = pathMod.join(folderPath, '.onworking', 'db');
+    const dbPath = pathMod.join(dbDir, 'onworking.db');
 
     if (!fs.existsSync(sourceDir)) throw new Error('source/ not found in folder');
 
@@ -155,30 +118,32 @@ export function registerETLRoutes(
       fields?: { name: string; type?: string; order?: number; isPrimaryKey?: boolean }[];
     };
 
-    const fields = (settings.fields ?? [])
+    const settingsFields = (settings.fields ?? [])
       .filter(f => f && f.name)
       .map(f => ({ name: f.name, type: (f.type ?? 'string') as string, isPrimaryKey: !!f.isPrimaryKey }));
-    if (fields.length === 0) throw new Error('BigTable has no fields configured');
+    if (settingsFields.length === 0) throw new Error('BigTable has no fields configured');
 
     const autoIncrementId = !!settings.autoIncrementId;
     const rawTableName = (settings.tableName || settings.name || pathMod.basename(folderPath)).trim();
     const tableName = rawTableName.replace(/[^a-zA-Z0-9一-鿿_]/g, '_').toLowerCase() || 'bigtable';
 
-    // 2. Open a DB connection for this folder
+    // 2. Delete old DB file, create a fresh one
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+
     const { DBConnection } = await import('../db/connection');
     const folderDb = new DBConnection(dbPath);
 
-    // 3. Create the target table with the BigTable schema (rebuild fresh each merge)
+    // 3. Create the target table with the BigTable schema
     const typeMap: Record<string, string> = { string: 'TEXT', cents: 'INTEGER', number: 'REAL', date: 'TEXT' };
-    const colDefs = fields.map(f => `"${f.name}" ${typeMap[f.type] ?? 'TEXT'}`);
+    const colDefs = settingsFields.map(f => `"${f.name}" ${typeMap[f.type] ?? 'TEXT'}`);
     const sourceCols = '"__source_file" TEXT, "__source_row" INTEGER, "__extracted_at" TEXT';
 
-    await folderDb.exec(`DROP TABLE IF EXISTS "${tableName}"`);
     let createSQL: string;
     if (autoIncrementId) {
       createSQL = `CREATE TABLE "${tableName}" (id INTEGER PRIMARY KEY AUTOINCREMENT, ${colDefs.join(', ')}, ${sourceCols})`;
     } else {
-      const pkFields = fields.filter(f => f.isPrimaryKey).map(f => `"${f.name}"`);
+      const pkFields = settingsFields.filter(f => f.isPrimaryKey).map(f => `"${f.name}"`);
       const pkClause = pkFields.length > 0 ? `, PRIMARY KEY (${pkFields.join(', ')})` : '';
       createSQL = `CREATE TABLE "${tableName}" (${colDefs.join(', ')}, ${sourceCols}${pkClause})`;
     }
@@ -195,7 +160,7 @@ export function registerETLRoutes(
     };
     walk(sourceDir);
 
-    // 5. Load rules — folder rules first, then workspace rules (the UI saves rules to the workspace rules dir)
+    // 5. Load rules — folder rules first, then workspace rules
     const { RuleStore } = await import('../rules/rule-store');
     const allRules: RuleDefinition[] = [];
     const folderStore = new RuleStore(rulesDir);
@@ -207,94 +172,87 @@ export function registerETLRoutes(
       }
     }
 
-    // 6. Parse each file and insert directly into the BigTable target table
-    const { ExcelParser } = await import('../plugins/onw-excel/parser');
-    const parserInst = new ExcelParser();
-    const { defaultParseConfig } = await import('../../common/types/parse-config');
-    const { TransformEngine } = await import('./transform-engine');
-    const transformEngine = new TransformEngine();
+    // 6. Parse each file and insert directly with strict sourceHeader matching
+    const parser = new ExcelParser();
 
     let totalRows = 0;
-    let rowIdx = 0;
     const fileStats: { file: string; rows: number; error?: string }[] = [];
+    const columnNames = settingsFields.map(f => f.name);
+    const allCols = [...columnNames, '__source_file', '__source_row', '__extracted_at'];
+    const placeholders = allCols.map(() => '?').join(', ');
+    const insertSQL = `INSERT INTO "${tableName}" (${allCols.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
+    const extractedAt = new Date().toISOString();
 
     for (const file of files) {
       const fileName = pathMod.basename(file);
       const relPath = pathMod.relative(sourceDir, file).replace(/\\/g, '/');
       const rule = allRules.find(r => {
         const pattern = r.sources[0]?.pattern;
-        return pattern && matchFolderRule(relPath, pattern);
+        const match = pattern && matchFolderRule(relPath, pattern);
+        console.log('[mergeFolder] rule=' + r.name + ' pattern=' + pattern + ' relPath=' + relPath + ' match=' + match);
+        return match;
       });
+      console.log('[mergeFolder] file=' + fileName + ' matched rule=' + (rule ? rule.name : 'NONE'));
       if (!rule) {
         fileStats.push({ file: fileName, rows: 0, error: 'No matching rule' });
         continue;
       }
       try {
-        // Build source → BigTable field mapping: sourceHeader → outputName (BigTable field)
-        const sourceToTarget: { sourceHeader: string; targetCol: string }[] = [];
-        for (const f of rule.fields) {
-          if (f.included && f.outputName) {
-            sourceToTarget.push({
-              sourceHeader: f.sourceHeader || f.outputName,
-              targetCol: f.outputName,
-            });
+        const source = rule.sources[0];
+        const config = defaultParseConfig(file, source.sheetIndex ?? 0, source.headerRow);
+        config.sheetName = source.sheetName;
+        const chunks = parser.parse(file, config);
+
+        // Build included field list sorted by order
+        const includedFields = rule.fields
+          .filter(f => f.included && f.sourceHeader)
+          .sort((a, b) => a.order - b.order);
+
+        // Collect Excel column names from the first chunk for validation
+        const excelHeaders = new Set<string>();
+        if (chunks.length > 0 && chunks[0].rows.length > 0) {
+          Object.keys(chunks[0].rows[0]).forEach(k => excelHeaders.add(k));
+        }
+
+        // Validate: every included sourceHeader must exist in the Excel file
+        for (const field of includedFields) {
+          if (field.sourceHeader && !excelHeaders.has(field.sourceHeader)) {
+            const available = [...excelHeaders].map(h => `"${h}"`).join(', ');
+            throw new Error(
+              `列名 "${field.sourceHeader}" 在文件 "${fileName}" 中不存在。` +
+              `Excel 实际列名: [${available}]`
+            );
           }
         }
 
-        // Parse the file
-        const hr = rule.sources[0]?.headerRow ?? 1;
-        const cfg = defaultParseConfig(file, rule.sources[0]?.sheetIndex ?? 0, hr);
-        const chunks = parserInst.parse(file, cfg);
+        // Build lookup: outputName → { sourceHeader, transforms }
+        const fieldMap = new Map<string, { sourceHeader: string; transforms: typeof includedFields[0]['transforms'] }>();
+        for (const f of includedFields) {
+          if (f.sourceHeader) fieldMap.set(f.outputName, { sourceHeader: f.sourceHeader, transforms: f.transforms });
+        }
 
-        // Build INSERT statement with mapped columns
-        const targetCols = sourceToTarget.map(m => m.targetCol);
-        const allCols = [...targetCols, '__source_file', '__source_row', '__extracted_at'];
-        const allPlaceholders = allCols.map(() => '?').join(', ');
-        const insertSQL = `INSERT INTO "${tableName}" (${allCols.map(c => `"${c}"`).join(', ')}) VALUES (${allPlaceholders})`;
-
-        const extractedAt = new Date().toISOString();
         let fileRows = 0;
-
         for (const chunk of chunks) {
-          // Apply transforms (type coercion, fill down, etc.)
-          const transformed = transformEngine.apply(chunk, rule);
-          for (const row of transformed.rows) {
-            const values: (string | number | bigint | null)[] = [];
-            for (const m of sourceToTarget) {
-              // After transform, row keys are outputName (see transform-engine.ts line 185)
-              const cell = row[m.targetCol];
-              values.push(cell?.value ?? null);
-            }
-            values.push(file, rowIdx++, extractedAt);
+          let chunkRowIdx = 0;
+          for (const row of chunk.rows) {
+            const values: (string | bigint | number | null)[] = columnNames.map(col => {
+              const mapping = fieldMap.get(col);
+              if (!mapping) return null;
+              const cell = row[mapping.sourceHeader];
+              if (!cell || cell.raw === '' || cell.raw === undefined) return null;
+              return applyTransforms(cell.raw, mapping.transforms);
+            });
+            const sourceRow = (chunk.locator.detail.chunkStart as number ?? 0) + chunkRowIdx;
+            values.push(file, sourceRow, extractedAt);
             await folderDb.run(insertSQL, values);
+            totalRows++;
             fileRows++;
+            chunkRowIdx++;
           }
         }
-
-        totalRows += fileRows;
         fileStats.push({ file: fileName, rows: fileRows });
       } catch (e) {
         fileStats.push({ file: fileName, rows: 0, error: (e as Error).message });
-      }
-    }
-
-    // 7. Sync the merged table to the workspace DB (mirror: drop + recreate + copy)
-    const tableRows = await folderDb.execute(`SELECT * FROM "${tableName}"`);
-    const tableMeta = await folderDb.execute(
-      `SELECT sql FROM sqlite_master WHERE type='table' AND name = ?`, [tableName],
-    );
-    if (tableMeta.length > 0) {
-      const createSql = String((tableMeta[0] as Record<string, unknown>).sql);
-      await db.exec(`DROP TABLE IF EXISTS "${tableName}"`);
-      await db.exec(createSql);
-      for (const row of tableRows) {
-        const keys = Object.keys(row);
-        if (keys.length === 0) continue;
-        const placeholders = keys.map(() => '?').join(', ');
-        await db.run(
-          `INSERT INTO "${tableName}" (${keys.map(k => `"${k}"`).join(', ')}) VALUES (${placeholders})`,
-          keys.map(k => (row[k] === undefined ? null : row[k])),
-        );
       }
     }
 
@@ -302,6 +260,119 @@ export function registerETLRoutes(
     return { tableName, rowsInserted: totalRows, fileStats, dbPath };
   }, { description: 'Extract all source files in a folder into a single BigTable table' });
 }
+
+// --- Inline transform helpers (replaces TransformEngine for mergeFolder) ---
+
+interface MergeFieldTransform {
+  kind: string;
+  trim?: boolean;
+  lowercase?: boolean;
+  uppercase?: boolean;
+  maxLength?: number;
+  nullValues?: string[];
+  outputType?: string;
+  emptyAs?: string;
+  negativePattern?: string;
+  thousandsSeparator?: string;
+  decimalSeparator?: string;
+  mapping?: Record<string, string>;
+  unmappedStrategy?: string;
+  caseSensitive?: boolean;
+  trueValues?: string[];
+  falseValues?: string[];
+}
+
+function applyTransforms(rawValue: string, transforms: MergeFieldTransform[]): string | bigint | null {
+  let current: string | bigint | null = rawValue;
+
+  // Sort transforms by standard order
+  const sorted = [...transforms].sort((a, b) => {
+    const orderA = TRANSFORM_KIND_ORDER[a.kind] ?? 99;
+    const orderB = TRANSFORM_KIND_ORDER[b.kind] ?? 99;
+    return orderA - orderB;
+  });
+
+  for (const t of sorted) {
+    switch (t.kind) {
+      case 'coerce_string': {
+        let s: string = String(current ?? '');
+        if (t.trim) s = s.trim();
+        if (t.lowercase) s = s.toLowerCase();
+        if (t.uppercase) s = s.toUpperCase();
+        if (t.nullValues?.includes(s)) { current = null; }
+        else if (t.maxLength && s.length > t.maxLength) s = s.slice(0, t.maxLength);
+        if (current !== null) current = s;
+        break;
+      }
+      case 'coerce_number': {
+        let s = String(current ?? '').trim();
+        if (s === '' || s === '-') {
+          current = t.outputType === 'cents'
+            ? (t.emptyAs === '0' ? 0n : null)
+            : (t.emptyAs === '0' ? '0' : null);
+          break;
+        }
+        let sign = 1n;
+        if (t.negativePattern === 'parentheses') {
+          const m = s.match(/^\((.+)\)$/);
+          if (m) { s = m[1]; sign = -1n; }
+        } else if (t.negativePattern === 'trailing_dash') {
+          if (s.endsWith('-')) s = '-' + s.slice(0, -1);
+        }
+        if (t.negativePattern === 'leading_dash' && s.startsWith('-')) {
+          sign = -1n; s = s.slice(1);
+        }
+        if (t.thousandsSeparator) s = s.replaceAll(t.thousandsSeparator, '');
+        if (t.decimalSeparator && t.decimalSeparator !== '.') s = s.replace(t.decimalSeparator, '.');
+        if (t.outputType === 'cents') {
+          const dot = s.indexOf('.');
+          if (dot === -1) { current = BigInt(s) * 100n * sign; }
+          else {
+            const intPart = s.slice(0, dot) || '0';
+            let frac = s.slice(dot + 1).slice(0, 2).padEnd(2, '0');
+            current = (BigInt(intPart) * 100n + BigInt(frac)) * sign;
+          }
+        } else {
+          current = sign === -1n ? '-' + s : s;
+        }
+        break;
+      }
+      case 'coerce_date': {
+        current = String(current ?? '');
+        break;
+      }
+      case 'coerce_enum': {
+        const s: string = String(current ?? '');
+        if (t.mapping?.[s]) { current = t.mapping[s]; }
+        else if (t.unmappedStrategy === 'null') { current = null; }
+        else if (t.unmappedStrategy === 'error') {
+          throw new Error(`Enum value "${s}" not in mapping`);
+        }
+        break;
+      }
+      case 'coerce_boolean': {
+        const s = String(current ?? '');
+        const cmp = t.caseSensitive ? s : s.toLowerCase();
+        const trues = t.caseSensitive ? (t.trueValues ?? []) : (t.trueValues ?? []).map(v => v.toLowerCase());
+        const falses = t.caseSensitive ? (t.falseValues ?? []) : (t.falseValues ?? []).map(v => v.toLowerCase());
+        if (trues.includes(cmp)) { current = 'true'; }
+        else if (falses.includes(cmp)) { current = 'false'; }
+        else { current = null; }
+        break;
+      }
+      default:
+        throw new Error(`Transform kind "${t.kind}" is not supported in mergeFolder`);
+    }
+  }
+  return current;
+}
+
+const TRANSFORM_KIND_ORDER: Record<string, number> = {
+  fill_down: 1, rename: 2,
+  coerce_string: 3, coerce_number: 3, coerce_date: 3, coerce_enum: 3, coerce_boolean: 3,
+  split_to_columns: 4, extract: 4, split_by_sign: 4,
+  derive: 5, filter_rows: 6,
+};
 
 /**
  * Match a rule's source pattern against a file path (forward-slash normalized).
