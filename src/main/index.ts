@@ -48,9 +48,9 @@ function createWindow(): void {
     title: 'OnWorking',
   });
 
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+  const devServer = process.env.VITE_DEV_SERVER_URL;
+  if (devServer) {
+    mainWindow.loadURL(devServer);
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../renderer/index.html'));
   }
