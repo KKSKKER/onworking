@@ -238,6 +238,26 @@ export function registerETLRoutes(
       }
     }
 
+    // 7. Sync table to workspace DB so View3 can preview/export
+    const tableRows = await folderDb.execute(`SELECT * FROM "${tableName}"`);
+    const tableMeta = await folderDb.execute(
+      `SELECT sql FROM sqlite_master WHERE type='table' AND name = ?`, [tableName],
+    );
+    if (tableMeta.length > 0 && tableRows.length > 0) {
+      const createSql = String((tableMeta[0] as Record<string, unknown>).sql);
+      await db.exec(`DROP TABLE IF EXISTS "${tableName}"`);
+      await db.exec(createSql);
+      for (const row of tableRows) {
+        const keys = Object.keys(row);
+        if (keys.length === 0) continue;
+        const phs = keys.map(() => '?').join(', ');
+        await db.run(
+          `INSERT INTO "${tableName}" (${keys.map(k => `"${k}"`).join(', ')}) VALUES (${phs})`,
+          keys.map(k => (row[k] === undefined ? null : row[k])),
+        );
+      }
+    }
+
     folderDb.close();
     return { tableName, rowsInserted: totalRows, fileStats, dbPath };
   }, { description: 'Extract all source files in a folder into a single BigTable table' });
