@@ -1,12 +1,10 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState } from 'react';
 import { TopBar, ViewId } from './components/TopBar';
 import { StatusBar } from './components/StatusBar';
 import { WorkspaceStart } from './components/WorkspaceStart';
 import { View1Config } from './components/View1Config';
+import { View2Preview } from './components/View2Preview';
 import { View3Results } from './components/View3Results';
-
-// Lazy-load View2Preview — Univer packages (~5MB) have import-time DI side effects
-const View2Preview = React.lazy(() => import('./components/View2Preview'));
 
 declare global {
   interface Window {
@@ -56,17 +54,15 @@ export const App: React.FC = () => {
           }} />
         )}
         {activeView === 'preview' && (
-          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>}>
-            <View2Preview
-              filePath={selectedFile}
-              onETLComplete={(result) => {
-                setETLResult(result);
-                setLastETL(new Date().toLocaleTimeString());
-                setStatus('ETL 完成');
-                setActiveView('results');
-              }}
-            />
-          </Suspense>
+          <View2Preview
+            filePath={selectedFile}
+            onETLComplete={(result) => {
+              setETLResult(result);
+              setLastETL(new Date().toLocaleTimeString());
+              setStatus('ETL 完成');
+              setActiveView('results');
+            }}
+          />
         )}
         {activeView === 'results' && (
           <View3Results etlResult={etlResult} />

@@ -1,7 +1,6 @@
 // onworking/src/renderer/components/View2Preview.tsx
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { UniverSheet } from './UniverSheet';
-import type { Univer } from '@univerjs/core';
 
 interface View2PreviewProps {
   filePath: string;
@@ -9,7 +8,6 @@ interface View2PreviewProps {
 }
 
 export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLComplete }) => {
-  const univerRef = useRef<Univer | null>(null);
   const [headerRow, setHeaderRow] = useState(3);
   const [status, setStatus] = useState('');
   const [executing, setExecuting] = useState(false);
@@ -65,7 +63,7 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLCompl
         <span style={{ color: '#666' }}>{status}</span>
       </div>
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        <UniverSheet onReady={(u) => { univerRef.current = u; }} />
+        <UniverSheet />
       </div>
     </div>
   );
