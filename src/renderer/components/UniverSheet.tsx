@@ -12,13 +12,15 @@ import '@univerjs/sheets-ui/lib/index.css';
 
 interface UniverSheetProps {
   style?: React.CSSProperties;
+  /** Callback to expose the Univer instance to parent */
+  onReady?: (univer: Univer) => void;
 }
 
 /**
  * Univer 电子表格 React 封装组件。
  * 初始化 Univer 实例，挂载到容器 div。
  */
-export const UniverSheet: React.FC<UniverSheetProps> = ({ style }) => {
+export const UniverSheet: React.FC<UniverSheetProps> = ({ style, onReady }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const univerRef = useRef<Univer | null>(null);
 
@@ -37,6 +39,8 @@ export const UniverSheet: React.FC<UniverSheetProps> = ({ style }) => {
     univerRef.current = univer;
 
     univer.createUnit(UniverInstanceType.UNIVER_SHEET, {});
+
+    onReady?.(univer);
 
     return () => {
       univer.dispose();

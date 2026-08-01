@@ -5,6 +5,7 @@
 
 import type { RuleDefinition, InsertResult, ParsedChunk } from '../../common/types/etl-types';
 import type { SourceParserDefinition } from '../plugins/onw-excel/index';
+import type { DBConnection } from '../db/connection';
 import { scanWorkspace } from './scanner';
 import { ruleToParseConfigs } from '../rules/rule-compiler';
 import { TransformEngine } from './transform-engine';
@@ -41,7 +42,10 @@ function resolveParser(filePath: string): SourceParserDefinition | undefined {
 export class ETLPipeline {
   private transformEngine = new TransformEngine();
 
-  constructor(private sourceDir: string) {}
+  constructor(
+    private sourceDir: string,
+    private db?: DBConnection,
+  ) {}
 
   async execute(
     rule: RuleDefinition,
@@ -85,7 +89,11 @@ export class ETLPipeline {
 
     // Stage 5: Insert
     onProgress?.({ stage: 'insert', ruleName: rule.name, filesProcessed: transformedChunks.length, totalFiles: transformedChunks.length, percentComplete: 80 });
-    const result = insert(transformedChunks, rule, validationReport);
+    const db = this.db;
+    if (!db) {
+      throw new Error('ETLPipeline: no DBConnection provided');
+    }
+    const result = await insert(transformedChunks, rule, validationReport, db);
 
     onProgress?.({ stage: 'insert', ruleName: rule.name, filesProcessed: transformedChunks.length, totalFiles: transformedChunks.length, percentComplete: 100 });
 
