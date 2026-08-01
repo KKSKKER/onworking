@@ -111,4 +111,20 @@ export function registerWorkspaceRoutes(
   router.register('workspace.listRecent', async () => {
     return WorkspaceManager.listRecent();
   }, { description: 'List recent workspaces' });
+
+  router.register('workspace.readFile', async (params) => {
+    const { path: filePath } = params as { path: string };
+    const fs = await import('node:fs');
+    if (!fs.existsSync(filePath)) return { content: null };
+    return { content: fs.readFileSync(filePath, 'utf-8') };
+  }, { description: 'Read a file from disk' });
+
+  router.register('workspace.writeFile', async (params) => {
+    const { path: filePath, content } = params as { path: string; content: string };
+    const fs = await import('node:fs');
+    const pathMod = await import('node:path');
+    fs.mkdirSync(pathMod.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, content, 'utf-8');
+    return { ok: true };
+  }, { description: 'Write a file to disk (creating parent dirs)' });
 }

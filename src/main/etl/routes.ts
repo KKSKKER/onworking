@@ -55,6 +55,25 @@ export function registerETLRoutes(
     return files;
   }, { description: 'Scan workspace for Excel files (root + source/)' });
 
+  router.register('etl.scanDir', async (params) => {
+    const { dir } = params as { dir: string };
+    const fs = await import('node:fs');
+    const pathMod = await import('node:path');
+    if (!fs.existsSync(dir)) return [];
+    const files: { path: string; name: string; size: number }[] = [];
+    const walk = (d: string): void => {
+      for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+        const full = pathMod.join(d, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(xlsx?|csv)$/i.test(entry.name)) {
+          files.push({ path: full, name: pathMod.relative(dir, full), size: fs.statSync(full).size });
+        }
+      }
+    };
+    walk(dir);
+    return files;
+  }, { description: 'Scan a directory recursively for Excel/CSV files' });
+
   router.register('etl.execute', async (params) => {
     const { ruleName } = params as { ruleName: string };
     const rule = ruleStore.load(ruleName);
