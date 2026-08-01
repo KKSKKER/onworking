@@ -82,7 +82,13 @@ export function registerWorkspaceRoutes(
     const { rootPath } = params as { rootPath: string };
     const ws = WorkspaceManager.create(rootPath);
     const info = ws.toInfo();
-    onInit(info);  // trigger main-process module initialization
+    try {
+      onInit(info);
+    } catch (e) {
+      console.error('[workspace.create] onInit failed:', e);
+      // Modules failed to init, but workspace dirs are created.
+      // Return info anyway so UI can proceed; DB routes will fail if used.
+    }
     return info;
   }, { description: 'Create and initialize a new workspace' });
 
@@ -90,7 +96,11 @@ export function registerWorkspaceRoutes(
     const { rootPath } = params as { rootPath: string };
     const ws = WorkspaceManager.open(rootPath);
     const info = ws.toInfo();
-    onInit(info);
+    try {
+      onInit(info);
+    } catch (e) {
+      console.error('[workspace.open] onInit failed:', e);
+    }
     return info;
   }, { description: 'Open an existing workspace' });
 

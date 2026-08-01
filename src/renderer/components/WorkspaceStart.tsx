@@ -15,17 +15,24 @@ export const WorkspaceStart: React.FC<WorkspaceStartProps> = ({ onWorkspaceReady
   const [recent, setRecent] = useState<WorkspaceMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [newPath, setNewPath] = useState('');
 
   useEffect(() => {
     window.onworking.api.call('workspace.listRecent').then(res => {
       if (res.success) setRecent(res.data as WorkspaceMeta[]);
       else setError(res.error ?? 'Failed');
       setLoading(false);
+    }).catch(e => {
+      console.error('[WorkspaceStart] listRecent error:', e);
+      setError((e as Error).message);
+      setLoading(false);
     });
   }, []);
 
   const openWorkspace = async (rootPath: string) => {
     setLoading(true);
+    setError('');
     const res = await window.onworking.api.call('workspace.open', { rootPath });
     if (res.success) onWorkspaceReady(res.data as Record<string, unknown>);
     else setError(res.error ?? 'Failed');
@@ -33,13 +40,24 @@ export const WorkspaceStart: React.FC<WorkspaceStartProps> = ({ onWorkspaceReady
   };
 
   const createWorkspace = async () => {
-    const rootPath = prompt('输入工作区文件夹路径（例如 D:\\审计项目\\良诚审计）:');
-    if (!rootPath) return;
+    const rootPath = newPath.trim();
+    if (!rootPath) { setError('请输入工作区路径'); return; }
     setLoading(true);
-    const res = await window.onworking.api.call('workspace.create', { rootPath });
-    if (res.success) onWorkspaceReady(res.data as Record<string, unknown>);
-    else setError(res.error ?? 'Failed');
-    setLoading(false);
+    setError('');
+    try {
+      const res = await window.onworking.api.call('workspace.create', { rootPath });
+      console.log('[WorkspaceStart] workspace.create result:', res);
+      if (res.success) {
+        onWorkspaceReady(res.data as Record<string, unknown>);
+      } else {
+        setError(res.error ?? '创建失败');
+        setLoading(false);
+      }
+    } catch (e) {
+      console.error('[WorkspaceStart] createWorkspace error:', e);
+      setError((e as Error).message);
+      setLoading(false);
+    }
   };
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>;
@@ -67,10 +85,35 @@ export const WorkspaceStart: React.FC<WorkspaceStartProps> = ({ onWorkspaceReady
             ))}
           </ul>
         )}
-        <button onClick={createWorkspace} style={{ marginTop: 16, width: '100%', padding: '10px',
-          background: '#007acc', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>
-          + 新建工作区
-        </button>
+
+        {showCreate ? (
+          <div style={{ marginTop: 16 }}>
+            <input
+              type="text"
+              value={newPath}
+              onChange={e => setNewPath(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') createWorkspace(); }}
+              placeholder="D:\审计项目\良诚审计"
+              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: 4, fontSize: 13, boxSizing: 'border-box' }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button onClick={createWorkspace}
+                style={{ flex: 1, padding: '8px', background: '#007acc', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                确认创建
+              </button>
+              <button onClick={() => { setShowCreate(false); setError(''); }}
+                style={{ padding: '8px 16px', background: '#eee', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                取消
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowCreate(true)} style={{ marginTop: 16, width: '100%', padding: '10px',
+            background: '#007acc', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>
+            + 新建工作区
+          </button>
+        )}
       </div>
     </div>
   );
