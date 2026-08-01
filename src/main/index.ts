@@ -7,6 +7,7 @@ import { excelToUniverSnapshot } from './plugins/onw-excel/bridge';
 import { registerParser } from './etl/pipeline';
 import { defaultParseConfig } from '../common/types/parse-config';
 import { getEntity, listEntities, registerEntity } from './entity/entity-registry';
+import { EntityQueryEngine } from './entity/query-engine';
 import { RuleStore, autoGenerateRule } from './rules/rule-store';
 
 // Register the onw-excel parser on startup
@@ -58,6 +59,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   const dbPath = path.join(app.getPath('userData'), 'onworking.db');
   const db = new DBConnection(dbPath);
+  const queryEngine = new EntityQueryEngine(db);
 
   apiRouter.register('db.query', async (params) => {
     const { sql, args } = params as { sql: string; args?: unknown[] };
@@ -100,27 +102,7 @@ app.whenReady().then(() => {
     const entity = getEntity(name);
     if (!entity) throw new Error(`Entity not found: ${name}`);
 
-    // Build SQL: SELECT attrs FROM table WHERE filters GROUP BY grain
-    const selects = entity.attributes.map(a => `${a.expression} AS "${a.name}"`);
-    const sql = [`SELECT ${selects.join(', ')}`, `FROM "${entity.table}"`];
-
-    const whereClauses: string[] = [];
-    const whereParams: unknown[] = [];
-    if (filters) {
-      for (const [key, value] of Object.entries(filters)) {
-        whereClauses.push(`"${key}" = ?`);
-        whereParams.push(value);
-      }
-    }
-    if (whereClauses.length > 0) {
-      sql.push(`WHERE ${whereClauses.join(' AND ')}`);
-    }
-
-    if (entity.grain.length > 0) {
-      sql.push(`GROUP BY ${entity.grain.map(g => `"${g}"`).join(', ')}`);
-    }
-
-    return db.execute(sql.join(' '), whereParams.length > 0 ? whereParams : undefined);
+    return queryEngine.execute(entity, filters);
   }, { description: 'Query entity data' });
 
   apiRouter.register('entity.list', async () => listEntities());
