@@ -4,6 +4,7 @@
 // ============================================================
 
 import type { RuleDefinition, InsertResult, ParsedChunk } from '../../common/types/etl-types';
+import type { SourceParserDefinition } from '../plugins/onw-excel/index';
 import { scanWorkspace } from './scanner';
 import { ruleToParseConfigs } from '../rules/rule-compiler';
 import { TransformEngine } from './transform-engine';
@@ -19,6 +20,23 @@ export interface ETLProgress {
 }
 
 export type ProgressCallback = (progress: ETLProgress) => void;
+
+/**
+ * SourceParser 注册表 — 插件通过 registerParser 贡献解析器。
+ * Core 不内置任何文件格式解析。
+ */
+const parserRegistry = new Map<string, SourceParserDefinition>();
+
+export function registerParser(parser: SourceParserDefinition): void {
+  for (const ext of parser.extensions) {
+    parserRegistry.set(ext.toLowerCase(), parser);
+  }
+}
+
+function resolveParser(filePath: string): SourceParserDefinition | undefined {
+  const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+  return parserRegistry.get(ext);
+}
 
 export class ETLPipeline {
   private transformEngine = new TransformEngine();
@@ -39,18 +57,21 @@ export class ETLPipeline {
       throw new Error(`No files matched rule "${rule.name}" in ${this.sourceDir}`);
     }
 
-    // Stage 2: Parse (Phase 1: mock)
+    // Stage 2: Parse — use registered parsers
     onProgress?.({ stage: 'parse', ruleName: rule.name, filesProcessed: 0, totalFiles: resolvedFiles.length, percentComplete: 10 });
     const parseConfigs = ruleToParseConfigs(rule, resolvedFiles);
-    const parsedChunks: ParsedChunk[] = parseConfigs.map(cfg => ({
-      rows: [],
-      locator: {
-        parser: 'mock',
-        file: cfg.filePath,
-        contentHash: cfg.expectedContentHash ?? '',
-        detail: { sheetIndex: cfg.sheetIndex },
-      },
-    }));
+    const parsedChunks: ParsedChunk[] = [];
+
+    for (let i = 0; i < parseConfigs.length; i++) {
+      const cfg = parseConfigs[i];
+      const parser = resolveParser(cfg.filePath);
+      if (!parser) {
+        throw new Error(`No parser registered for file extension: ${cfg.filePath}`);
+      }
+      const chunks = parser.parse(cfg.filePath, cfg);
+      parsedChunks.push(...chunks);
+      onProgress?.({ stage: 'parse', ruleName: rule.name, filesProcessed: i + 1, totalFiles: parseConfigs.length, percentComplete: 10 + Math.round((i + 1) / parseConfigs.length * 20) });
+    }
 
     // Stage 3: Transform
     onProgress?.({ stage: 'transform', ruleName: rule.name, filesProcessed: 0, totalFiles: parsedChunks.length, percentComplete: 30 });

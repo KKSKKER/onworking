@@ -1,6 +1,11 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { apiRouter } from './api/router';
+import { ExcelParser } from './plugins/onw-excel';
+import { registerParser } from './etl/pipeline';
+
+// Register the onw-excel parser on startup
+registerParser(new ExcelParser());
 
 let mainWindow: BrowserWindow | null = null;
 
