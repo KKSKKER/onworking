@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { useTableConfig } from '../state/TableConfigStore';
 import type { TypeGuess } from '../state/TableConfig';
+import { SearchableSelect } from './SearchableSelect';
+import { useBigTable, useBigTableStore } from '../state/BigTableStore';
 
 interface RuleEditorProps {
   filePath: string;
@@ -11,6 +13,9 @@ interface RuleEditorProps {
 export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) => {
   const config = useTableConfig(filePath);
   const [loading, setLoading] = useState(false);
+  const { selectedFolder } = useBigTableStore();
+  const bigTable = useBigTable(selectedFolder);
+  const bigTableFields = bigTable?.fields.map(f => f.name) ?? [];
 
   if (!config) return <div style={{ fontSize: 12, padding: 8, color: '#999' }}>请先在左侧选择文件</div>;
 
@@ -52,6 +57,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
                 <th style={{ padding: 4 }}>☑</th>
                 <th style={{ padding: 4 }}>字段名</th>
                 <th style={{ padding: 4 }}>类型</th>
+                <th style={{ padding: 4 }}>映射字段</th>
               </tr>
             </thead>
             <tbody>
@@ -68,6 +74,14 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
                       <option value="number">数字</option>
                       <option value="date">日期</option>
                     </select>
+                  </td>
+                  <td style={{ padding: 4 }}>
+                    <SearchableSelect
+                      value={f.mappedField}
+                      options={bigTableFields}
+                      onChange={val => config.setMappedField(i, val)}
+                      placeholder="映射到..."
+                    />
                   </td>
                 </tr>
               ))}
