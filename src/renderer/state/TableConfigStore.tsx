@@ -37,15 +37,39 @@ export const TableConfigStoreProvider: React.FC<{ children: React.ReactNode }> =
 
   const selectFile = useCallback((file: string) => {
     setSelectedFile(file);
-    if (file) ensureConfig(file);
+    if (!file) return;
+    const cfg = ensureConfig(file);
+    // Auto-detect fields on first select (if not already populated)
+    if (cfg.fields.length === 0) {
+      cfg.detectFields();
+    }
   }, [ensureConfig]);
 
   const selectRule = useCallback(async (ruleName: string) => {
     setSelectedRule(ruleName);
-    if (!selectedFile || !ruleName) return;
+    if (!ruleName) return;
     const res = await window.onworking.api.call('rule.get', { name: ruleName });
-    if (res.success) {
-      ensureConfig(selectedFile).loadFromRuleDefinition(res.data as RuleDefinition);
+    if (!res.success) return;
+    const rule = res.data as RuleDefinition;
+
+    // Find which file this rule belongs to from its display or saved source
+    // Rules saved by TableConfig include the original file in display: "提取规则: filename"
+    const fileName = rule.display?.replace(/^提取规则:\s*/, '');
+    // Try to match against existing configs or the currently selected file
+    let targetFile = selectedFile;
+    if (fileName && !targetFile) {
+      // Search known configs for a matching file
+      for (const [path] of configsRef.current) {
+        if (path.endsWith(fileName) || path.includes(fileName)) {
+          targetFile = path;
+          break;
+        }
+      }
+    }
+
+    if (targetFile) {
+      setSelectedFile(targetFile);
+      ensureConfig(targetFile).loadFromRuleDefinition(rule);
     }
   }, [selectedFile, ensureConfig]);
 

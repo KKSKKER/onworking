@@ -1,5 +1,5 @@
 // onworking/src/renderer/components/View2Preview.tsx
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTableConfig, useTableConfigStore } from '../state/TableConfigStore';
 
 interface PreviewCell { v: string | number | boolean | null; t?: string }
@@ -21,8 +21,9 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLCompl
   const [snapshot, setSnapshot] = useState<PreviewSnapshot | null>(null);
 
   const headerRow = config?.headerRow ?? 1;
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadPreview = async () => {
+  const loadPreview = useCallback(async () => {
     if (!filePath) return;
     setStatus('加载中...');
     setSnapshot(null);
@@ -36,7 +37,15 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLCompl
     } else {
       setStatus(`错误: ${res.error}`);
     }
-  };
+  }, [filePath, headerRow]);
+
+  // Auto-load preview when entering view or when headerRow changes (debounced)
+  useEffect(() => {
+    if (!filePath) return;
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = setTimeout(() => loadPreview(), 300);
+    return () => { if (previewTimer.current) clearTimeout(previewTimer.current); };
+  }, [filePath, headerRow, loadPreview]);
 
   const executeImport = async () => {
     setExecuting(true);
