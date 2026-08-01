@@ -110,7 +110,7 @@ export class TableConfig {
     const name = this.ruleName || `rule_${baseName}`;
     return {
       name, display: `提取规则: ${fileName}`, version: 1,
-      sources: [{ pattern: '**/*.{xls,xlsx,csv}', sheetIndex: this.sheetIndex, headerRow: this.headerRow }],
+      sources: [{ pattern: `**/${fileName}`, sheetIndex: this.sheetIndex, headerRow: this.headerRow }],
       fields: this.fields.map((f, i) => ({
         sourceHeader: f.sourceHeader,
         outputName: f.mappedField || f.sourceHeader,  // mapped field name = output column
