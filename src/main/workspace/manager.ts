@@ -127,4 +127,20 @@ export function registerWorkspaceRoutes(
     fs.writeFileSync(filePath, content, 'utf-8');
     return { ok: true };
   }, { description: 'Write a file to disk (creating parent dirs)' });
+
+  router.register('workspace.listFolders', async (params) => {
+    const { rootPath } = params as { rootPath: string };
+    const fs = await import('node:fs');
+    if (!fs.existsSync(rootPath)) return [];
+    return fs.readdirSync(rootPath, { withFileTypes: true })
+      .filter(e => e.isDirectory() && !e.name.startsWith('.') && fs.existsSync(rootPath + '/' + e.name + '/source'))
+      .map(e => e.name);
+  }, { description: 'List subfolders of a workspace root that contain a source/ folder' });
+
+  router.register('workspace.createFolder', async (params) => {
+    const { path: dirPath } = params as { path: string };
+    const fs = await import('node:fs');
+    fs.mkdirSync(dirPath, { recursive: true });
+    return { ok: true };
+  }, { description: 'Create a directory recursively' });
 }
