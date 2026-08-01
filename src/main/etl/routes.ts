@@ -103,7 +103,8 @@ export function registerETLRoutes(
     const pathMod = await import('node:path');
     const sourceDir = pathMod.join(folderPath, 'source');
     const rulesDir = pathMod.join(folderPath, '.onworking', 'rules');
-    const dbPath = pathMod.join(folderPath, '.onworking', 'db', 'onworking.db');
+    const dbDir = pathMod.join(folderPath, '.onworking', 'db');
+    const dbPath = pathMod.join(dbDir, 'onworking.db');
 
     if (!fs.existsSync(sourceDir)) throw new Error('source/ not found in folder');
 
@@ -117,30 +118,32 @@ export function registerETLRoutes(
       fields?: { name: string; type?: string; order?: number; isPrimaryKey?: boolean }[];
     };
 
-    const fields = (settings.fields ?? [])
+    const settingsFields = (settings.fields ?? [])
       .filter(f => f && f.name)
       .map(f => ({ name: f.name, type: (f.type ?? 'string') as string, isPrimaryKey: !!f.isPrimaryKey }));
-    if (fields.length === 0) throw new Error('BigTable has no fields configured');
+    if (settingsFields.length === 0) throw new Error('BigTable has no fields configured');
 
     const autoIncrementId = !!settings.autoIncrementId;
     const rawTableName = (settings.tableName || settings.name || pathMod.basename(folderPath)).trim();
     const tableName = rawTableName.replace(/[^a-zA-Z0-9一-鿿_]/g, '_').toLowerCase() || 'bigtable';
 
-    // 2. Open a DB connection for this folder
+    // 2. Delete old DB file, create a fresh one
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+
     const { DBConnection } = await import('../db/connection');
     const folderDb = new DBConnection(dbPath);
 
-    // 3. Create the target table with the BigTable schema (rebuild fresh each merge)
+    // 3. Create the target table with the BigTable schema
     const typeMap: Record<string, string> = { string: 'TEXT', cents: 'INTEGER', number: 'REAL', date: 'TEXT' };
-    const colDefs = fields.map(f => `"${f.name}" ${typeMap[f.type] ?? 'TEXT'}`);
+    const colDefs = settingsFields.map(f => `"${f.name}" ${typeMap[f.type] ?? 'TEXT'}`);
     const sourceCols = '"__source_file" TEXT, "__source_row" INTEGER, "__extracted_at" TEXT';
 
-    await folderDb.exec(`DROP TABLE IF EXISTS "${tableName}"`);
     let createSQL: string;
     if (autoIncrementId) {
       createSQL = `CREATE TABLE "${tableName}" (id INTEGER PRIMARY KEY AUTOINCREMENT, ${colDefs.join(', ')}, ${sourceCols})`;
     } else {
-      const pkFields = fields.filter(f => f.isPrimaryKey).map(f => `"${f.name}"`);
+      const pkFields = settingsFields.filter(f => f.isPrimaryKey).map(f => `"${f.name}"`);
       const pkClause = pkFields.length > 0 ? `, PRIMARY KEY (${pkFields.join(', ')})` : '';
       createSQL = `CREATE TABLE "${tableName}" (${colDefs.join(', ')}, ${sourceCols}${pkClause})`;
     }
@@ -157,7 +160,7 @@ export function registerETLRoutes(
     };
     walk(sourceDir);
 
-    // 5. Load rules — folder rules first, then workspace rules (the UI saves rules to the workspace rules dir)
+    // 5. Load rules — folder rules first, then workspace rules
     const { RuleStore } = await import('../rules/rule-store');
     const allRules: RuleDefinition[] = [];
     const folderStore = new RuleStore(rulesDir);
@@ -169,14 +172,18 @@ export function registerETLRoutes(
       }
     }
 
-    // 6. Pipeline against the folder DB (sourceDir = folderPath/source)
-    const { ETLPipeline, registerParser } = await import('./pipeline');
-    const { ExcelParser } = await import('../plugins/onw-excel/parser');
-    registerParser(new ExcelParser());
-    const pipeline = new ETLPipeline(sourceDir, folderDb, folderPath);
+    // 6. Parse each file and insert directly (like etl.preview + field mapping)
+    const parser = new ExcelParser();
+    const { TransformEngine } = await import('./transform-engine');
+    const transformEngine = new TransformEngine();
 
     let totalRows = 0;
     const fileStats: { file: string; rows: number; error?: string }[] = [];
+    const columnNames = settingsFields.map(f => f.name);
+    const allCols = [...columnNames, '__source_file', '__source_row', '__extracted_at'];
+    const placeholders = allCols.map(() => '?').join(', ');
+    const insertSQL = `INSERT INTO "${tableName}" (${allCols.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
+    const extractedAt = new Date().toISOString();
 
     for (const file of files) {
       const fileName = pathMod.basename(file);
@@ -190,38 +197,36 @@ export function registerETLRoutes(
         continue;
       }
       try {
-        // Scope the rule to this single file and to the BigTable table name so the
-        // pipeline inserts only this file's rows into the pre-created target table.
-        const singleFileRule: RuleDefinition = {
-          ...rule,
-          name: tableName,
-          sources: rule.sources.map(s => ({ ...s, pattern: `**/${fileName}` })),
-        };
-        const result = await pipeline.execute(singleFileRule);
-        totalRows += result.rowsInserted;
-        fileStats.push({ file: fileName, rows: result.rowsInserted });
+        // Parse the file (same way etl.preview does)
+        const source = rule.sources[0];
+        const config = defaultParseConfig(file, source.sheetIndex ?? 0, source.headerRow);
+        config.sheetName = source.sheetName;
+        const chunks = parser.parse(file, config);
+
+        let fileRows = 0;
+        for (const chunk of chunks) {
+          // Apply rule's field mapping (sourceHeader → outputName) with transforms
+          const transformed = transformEngine.apply(chunk, rule);
+
+          let chunkRowIdx = 0;
+          for (const row of transformed.rows) {
+            // Build values matching settings field order
+            const values: (string | bigint | number | null)[] = columnNames.map(col => {
+              const cell = row[col];
+              if (!cell || cell.value === null || cell.value === undefined) return null;
+              return cell.value;
+            });
+            const sourceRow = (chunk.locator.detail.chunkStart as number ?? 0) + chunkRowIdx;
+            values.push(file, sourceRow, extractedAt);
+            await folderDb.run(insertSQL, values);
+            totalRows++;
+            fileRows++;
+            chunkRowIdx++;
+          }
+        }
+        fileStats.push({ file: fileName, rows: fileRows });
       } catch (e) {
         fileStats.push({ file: fileName, rows: 0, error: (e as Error).message });
-      }
-    }
-
-    // 7. Sync the merged table to the workspace DB (mirror: drop + recreate + copy)
-    const tableRows = await folderDb.execute(`SELECT * FROM "${tableName}"`);
-    const tableMeta = await folderDb.execute(
-      `SELECT sql FROM sqlite_master WHERE type='table' AND name = ?`, [tableName],
-    );
-    if (tableMeta.length > 0) {
-      const createSql = String((tableMeta[0] as Record<string, unknown>).sql);
-      await db.exec(`DROP TABLE IF EXISTS "${tableName}"`);
-      await db.exec(createSql);
-      for (const row of tableRows) {
-        const keys = Object.keys(row);
-        if (keys.length === 0) continue;
-        const placeholders = keys.map(() => '?').join(', ');
-        await db.run(
-          `INSERT INTO "${tableName}" (${keys.map(k => `"${k}"`).join(', ')}) VALUES (${placeholders})`,
-          keys.map(k => (row[k] === undefined ? null : row[k])),
-        );
       }
     }
 
