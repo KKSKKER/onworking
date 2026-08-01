@@ -35,18 +35,27 @@ export const View3Results: React.FC<View3ResultsProps> = ({ etlResult }) => {
     });
   }, [selectedTable, etlResult]);
 
-  const exportCSV = () => {
-    if (rows.length === 0) return;
-    const columns = Object.keys(rows[0]);
+  const [exporting, setExporting] = useState(false);
+
+  const exportCSV = async () => {
+    if (!selectedTable || total === 0) return;
+    setExporting(true);
+    // Fetch ALL rows for export (not just paginated view)
+    const res = await window.onworking.api.call('etl.getTableData', { table: selectedTable, limit: total + 100, offset: 0 });
+    setExporting(false);
+    if (!res.success) return;
+    const allRows = (res.data as { rows: Record<string, unknown>[] }).rows;
+    if (allRows.length === 0) return;
+    const columns = Object.keys(allRows[0]);
     const header = columns.map(c => `"${c}"`).join(',');
-    const body = rows.map(row => columns.map(c => {
+    const body = allRows.map(row => columns.map(c => {
       const v = row[c];
       if (v === null || v === undefined) return '';
       const s = String(v);
       return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
     }).join(',')).join('\n');
-    const csv = header + '\n' + body;
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const csv = '﻿' + header + '\n' + body;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -65,7 +74,9 @@ export const View3Results: React.FC<View3ResultsProps> = ({ etlResult }) => {
           {tables.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <span style={{ color: '#666' }}>共 {total} 行</span>
-        <button onClick={exportCSV} style={{ padding: '2px 8px', marginLeft: 'auto' }}>导出 CSV</button>
+        <button onClick={exportCSV} disabled={exporting} style={{ padding: '2px 8px', marginLeft: 'auto' }}>
+          {exporting ? '导出中...' : '导出 CSV'}
+        </button>
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
