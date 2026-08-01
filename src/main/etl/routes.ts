@@ -261,8 +261,8 @@ export function registerETLRoutes(
           for (const row of transformed.rows) {
             const values: (string | number | bigint | null)[] = [];
             for (const m of sourceToTarget) {
-              // After transform, row keys are still sourceHeader (transform engine doesn't rename)
-              const cell = row[m.sourceHeader];
+              // After transform, row keys are outputName (see transform-engine.ts line 185)
+              const cell = row[m.targetCol];
               values.push(cell?.value ?? null);
             }
             values.push(file, rowIdx++, extractedAt);
