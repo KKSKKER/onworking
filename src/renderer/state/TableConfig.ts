@@ -40,6 +40,7 @@ export class TableConfig {
   sheetIndex = 0;
   fields: TableField[] = [];
   saved = false;
+  rulesDir = '';  // BigTable folder's .onworking/rules/ path
 
   private onChange: () => void;
   private detectSeq = 0;
@@ -70,6 +71,7 @@ export class TableConfig {
     const seq = ++this.detectSeq;
     const res = await window.onworking.api.call('rule.autoGenerate', {
       file: this.filePath, headerRow: this.headerRow, save: false,
+      rulesDir: this.rulesDir || undefined,
     });
     if (seq !== this.detectSeq) return;
     if (!res.success) return;
@@ -124,7 +126,9 @@ export class TableConfig {
 
   async save(): Promise<void> {
     const rule = this.toRuleDefinition();
-    await window.onworking.api.call('rule.save', rule as unknown as Record<string, unknown>);
+    const params: Record<string, unknown> = { ...rule as unknown as Record<string, unknown> };
+    if (this.rulesDir) params.rulesDir = this.rulesDir;
+    await window.onworking.api.call('rule.save', params);
     this.saved = true;
     this.onChange();
   }

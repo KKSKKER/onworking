@@ -28,7 +28,18 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath }) => {
       file: filePath, sheetIndex: 0, headerRow, maxRows: 100,
     });
     if (res.success) {
-      const snap = res.data as PreviewSnapshot;
+      let snap = res.data as PreviewSnapshot;
+      // Apply BigTable field mapping: rename columns to mapped field names
+      if (config && config.fields.length > 0) {
+        const mapping = new Map<string, string>();
+        for (const f of config.fields) {
+          if (f.included && f.mappedField) mapping.set(f.sourceHeader, f.mappedField);
+        }
+        if (mapping.size > 0) {
+          const newHeaders = snap.headers.map(h => mapping.get(h) || h);
+          snap = { ...snap, headers: newHeaders };
+        }
+      }
       setSnapshot(snap);
       setStatus(`已加载: ${snap.totalRows} 行, ${snap.totalColumns} 列 (表头行: ${headerRow})`);
     } else {

@@ -1,5 +1,6 @@
 // onworking/src/main/rules/routes.ts
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import type { APIRouter } from '../api/router';
 import { RuleStore, autoGenerateRule, ColumnProfile } from './rule-store';
 import { ExcelParser } from '../plugins/onw-excel/parser';
@@ -8,28 +9,40 @@ import { defaultParseConfig } from '../../common/types/parse-config';
 export function registerRuleRoutes(router: APIRouter, rulesDir: string): void {
   const store = new RuleStore(rulesDir);
 
-  router.register('rule.list', async () => store.listAll(),
-    { description: 'List all extraction rules' });
+  /** Resolve the correct RuleStore — uses folder-specific store when rulesDir param is provided */
+  function getStore(paramsRulesDir?: string): RuleStore {
+    if (paramsRulesDir && paramsRulesDir !== rulesDir) {
+      fs.mkdirSync(paramsRulesDir, { recursive: true });
+      return new RuleStore(paramsRulesDir);
+    }
+    return store;
+  }
+
+  router.register('rule.list', async (params) => {
+    const { rulesDir: rd } = (params || {}) as { rulesDir?: string };
+    return getStore(rd).listAll();
+  }, { description: 'List all extraction rules' });
 
   router.register('rule.get', async (params) => {
-    const { name } = params as { name: string };
-    return store.load(name);
+    const { name, rulesDir: rd } = params as { name: string; rulesDir?: string };
+    return getStore(rd).load(name);
   }, { description: 'Get a rule by name' });
 
   router.register('rule.save', async (params) => {
-    const rule = params as Record<string, unknown>;
-    store.save(rule as unknown as Parameters<typeof store.save>[0]);
+    const { rulesDir: rd, ...rule } = params as Record<string, unknown>;
+    const s = getStore(rd as string | undefined);
+    s.save(rule as unknown as Parameters<typeof store.save>[0]);
     return { saved: true, name: (rule as { name: string }).name };
   }, { description: 'Save a rule to YAML' });
 
   router.register('rule.delete', async (params) => {
-    const { name } = params as { name: string };
-    store.delete(name);
+    const { name, rulesDir: rd } = params as { name: string; rulesDir?: string };
+    getStore(rd).delete(name);
     return { deleted: true };
   }, { description: 'Delete a rule' });
 
   router.register('rule.autoGenerate', async (params) => {
-    const { file, headerRow, save } = params as { file: string; headerRow?: number; save?: boolean };
+    const { file, headerRow, save, rulesDir: rd } = params as { file: string; headerRow?: number; save?: boolean; rulesDir?: string };
     if (!file) throw new Error('rule.autoGenerate requires a "file" parameter');
 
     const parser = new ExcelParser();
@@ -78,8 +91,9 @@ export function registerRuleRoutes(router: APIRouter, rulesDir: string): void {
     });
 
     const rule = autoGenerateRule(file, fileName, structure.sheets, sheetIndex, hr, profiles);
-    if (shouldSave) store.save(rule);
+    const s = getStore(rd);
+    if (shouldSave) s.save(rule);
 
-    return { rule, savedTo: shouldSave ? rulesDir : null };
+    return { rule, savedTo: shouldSave ? (rd || rulesDir) : null };
   }, { description: 'Auto-generate extraction rule from file structure' });
 }

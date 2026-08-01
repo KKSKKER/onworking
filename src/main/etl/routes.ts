@@ -101,13 +101,9 @@ export function registerETLRoutes(
     const pathMod = await import('node:path');
     const sourceDir = pathMod.join(folderPath, 'source');
     const rulesDir = pathMod.join(folderPath, '.onworking', 'rules');
-    const dbPath = pathMod.join(folderPath, '.onworking', 'db', 'onworking.db');
+    const folderDbPath = pathMod.join(folderPath, '.onworking', 'db', 'onworking.db');
 
     if (!fs.existsSync(sourceDir)) throw new Error('source/ not found in folder');
-
-    // Create a DB connection for this folder
-    const { DBConnection } = await import('../db/connection');
-    const folderDb = new DBConnection(dbPath);
 
     // Scan source files
     const files: string[] = [];
@@ -120,27 +116,29 @@ export function registerETLRoutes(
     };
     walk(sourceDir);
 
-    // Load rules
+    // Load rules from the folder's rules dir
     const { RuleStore } = await import('../rules/rule-store');
-    const store = new RuleStore(rulesDir);
-    const allRules = store.listAll();
+    const folderRuleStore = new RuleStore(rulesDir);
+    const allRules = folderRuleStore.listAll();
 
-    // For each file, find matching rule and run ETL
-    const tableName = pathMod.basename(folderPath).replace(/[^a-zA-Z0-9一-鿿_]/g, '_').toLowerCase();
+    // Also create folder DB for standalone access, and use workspace DB for View3
+    const { DBConnection } = await import('../db/connection');
+    const folderDb = new DBConnection(folderDbPath);
     const { ETLPipeline, registerParser } = await import('./pipeline');
     const { ExcelParser } = await import('../plugins/onw-excel/parser');
     registerParser(new ExcelParser());
-    const pipeline = new ETLPipeline(sourceDir, folderDb, folderPath);
+    const pipeline = new ETLPipeline(sourceDir, db, folderPath); // Use workspace db for View3 access
 
     let totalRows = 0;
+    let mergedTableName = '';
     const fileStats: { file: string; rows: number; error?: string }[] = [];
 
     for (const file of files) {
       const fileName = pathMod.basename(file);
-      // Find matching rule — use first rule whose pattern matches
       const rule = allRules.find(r => {
         const pattern = r.sources[0]?.pattern;
-        return pattern && new RegExp(pattern.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*').replace(/\./g, '\\.')).test(fileName);
+        if (!pattern) return false;
+        return matchGlobForRule(fileName, pattern);
       });
       if (!rule) {
         fileStats.push({ file: fileName, rows: 0, error: 'No matching rule' });
@@ -149,6 +147,7 @@ export function registerETLRoutes(
       try {
         const result = await pipeline.execute(rule);
         totalRows += result.rowsInserted;
+        if (!mergedTableName) mergedTableName = result.tableName;
         fileStats.push({ file: fileName, rows: result.rowsInserted });
       } catch (e) {
         fileStats.push({ file: fileName, rows: 0, error: (e as Error).message });
@@ -156,6 +155,19 @@ export function registerETLRoutes(
     }
 
     folderDb.close();
-    return { tableName, rowsInserted: totalRows, fileStats, dbPath };
+    return { tableName: mergedTableName || pathMod.basename(folderPath), rowsInserted: totalRows, fileStats };
   }, { description: 'Extract all source files in a folder into a single DB table' });
+
+// Helper: simple glob match for rule patterns
+function matchGlobForRule(fileName: string, pattern: string): boolean {
+  const regexStr = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*\//g, '(.*/)?')
+    .replace(/\*\*/g, '.*')
+    .replace(/\*/g, '[^/]*');
+  return new RegExp('^' + regexStr + '$', 'i').test(fileName);
+}
+
+// Track the last merged table name
+let resultTableName = '';
 }

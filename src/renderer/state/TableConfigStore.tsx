@@ -41,11 +41,20 @@ export const TableConfigStoreProvider: React.FC<{ children: React.ReactNode }> =
     const cfg = ensureConfig(file);
     if (cfg.fields.length > 0) return; // already loaded
 
+    // Determine BigTable folder from file path: workspaceRoot/folderName/source/file.xls
+    // Extract folderName to find the rulesDir
+    const normalized = file.replace(/\\/g, '/');
+    const sourceIdx = normalized.indexOf('/source/');
+    if (sourceIdx > 0) {
+      const folderPath = normalized.slice(0, sourceIdx);
+      cfg.rulesDir = folderPath + '/.onworking/rules';
+    }
+
     // Try loading a saved rule first, fall back to auto-detect
     const fileName = file.replace(/^.*[\\/]/, '');
     const baseName = fileName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9一-鿿_-]/g, '_');
     const ruleName = `rule_${baseName}`;
-    const res = await window.onworking.api.call('rule.get', { name: ruleName });
+    const res = await window.onworking.api.call('rule.get', { name: ruleName, rulesDir: cfg.rulesDir || undefined });
     if (res.success) {
       cfg.loadFromRuleDefinition(res.data as RuleDefinition);
     } else {
