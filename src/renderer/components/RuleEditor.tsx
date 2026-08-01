@@ -52,7 +52,6 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
                 <th style={{ padding: 4 }}>☑</th>
                 <th style={{ padding: 4 }}>字段名</th>
                 <th style={{ padding: 4 }}>类型</th>
-                <th style={{ padding: 4 }}>排序</th>
               </tr>
             </thead>
             <tbody>
@@ -69,12 +68,6 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
                       <option value="number">数字</option>
                       <option value="date">日期</option>
                     </select>
-                  </td>
-                  <td style={{ padding: 4 }}>
-                    <button onClick={() => config.moveField(i, -1)} disabled={i === 0}
-                      style={{ border: 'none', cursor: 'pointer' }}>▲</button>
-                    <button onClick={() => config.moveField(i, 1)} disabled={i === fields.length - 1}
-                      style={{ border: 'none', cursor: 'pointer' }}>▼</button>
                   </td>
                 </tr>
               ))}

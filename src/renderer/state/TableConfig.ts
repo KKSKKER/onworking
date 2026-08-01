@@ -9,7 +9,7 @@ export interface TableField {
   sourceHeader: string;
   outputName: string;
   included: boolean;
-  order: number;
+  mappedField: string;  // references BigTable field name
   typeGuess: TypeGuess;
 }
 
@@ -62,13 +62,8 @@ export class TableConfig {
   setFieldType(i: number, t: TypeGuess): void { if (this.fields[i]) { this.fields[i].typeGuess = t; this.saved = false; this.onChange(); } }
   toggleField(i: number): void { if (this.fields[i]) { this.fields[i].included = !this.fields[i].included; this.saved = false; this.onChange(); } }
 
-  moveField(i: number, dir: -1 | 1): void {
-    const t = i + dir;
-    if (t < 0 || t >= this.fields.length) return;
-    [this.fields[i], this.fields[t]] = [this.fields[t], this.fields[i]];
-    this.fields.forEach((f, j) => { f.order = j + 1; });
-    this.saved = false;
-    this.onChange();
+  setMappedField(i: number, field: string): void {
+    if (this.fields[i]) { this.fields[i].mappedField = field; this.saved = false; this.onChange(); }
   }
 
   async detectFields(): Promise<void> {
@@ -87,7 +82,7 @@ export class TableConfig {
       sourceHeader: f.sourceHeader ?? '',
       outputName: f.outputName,
       included: f.included,
-      order: f.order,
+      mappedField: f.outputName || '',  // try matching by name initially
       typeGuess: typeGuessFromTransforms(f.transforms),
     }));
     this.saved = false;
@@ -102,7 +97,7 @@ export class TableConfig {
       sourceHeader: f.sourceHeader ?? '',
       outputName: f.outputName,
       included: f.included,
-      order: f.order,
+      mappedField: f.outputName || '',  // outputName IS the mapped field
       typeGuess: typeGuessFromTransforms(f.transforms),
     }));
     this.saved = true;
@@ -117,8 +112,11 @@ export class TableConfig {
       name, display: `提取规则: ${fileName}`, version: 1,
       sources: [{ pattern: '**/*.{xls,xlsx,csv}', sheetIndex: this.sheetIndex, headerRow: this.headerRow }],
       fields: this.fields.map((f, i) => ({
-        sourceHeader: f.sourceHeader, outputName: f.outputName || f.sourceHeader,
-        included: f.included, order: i + 1, transforms: buildTransforms(f.typeGuess),
+        sourceHeader: f.sourceHeader,
+        outputName: f.mappedField || f.sourceHeader,  // mapped field name = output column
+        included: f.included,
+        order: i + 1,
+        transforms: buildTransforms(f.typeGuess),
       })),
       mergeStrategy: { mode: 'append' },
     };
