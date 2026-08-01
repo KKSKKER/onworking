@@ -172,10 +172,8 @@ export function registerETLRoutes(
       }
     }
 
-    // 6. Parse each file and insert directly (like etl.preview + field mapping)
+    // 6. Parse each file and insert directly with strict sourceHeader matching
     const parser = new ExcelParser();
-    const { TransformEngine } = await import('./transform-engine');
-    const transformEngine = new TransformEngine();
 
     let totalRows = 0;
     const fileStats: { file: string; rows: number; error?: string }[] = [];
@@ -197,24 +195,49 @@ export function registerETLRoutes(
         continue;
       }
       try {
-        // Parse the file (same way etl.preview does)
         const source = rule.sources[0];
         const config = defaultParseConfig(file, source.sheetIndex ?? 0, source.headerRow);
         config.sheetName = source.sheetName;
         const chunks = parser.parse(file, config);
 
+        // Build included field list sorted by order
+        const includedFields = rule.fields
+          .filter(f => f.included && f.sourceHeader)
+          .sort((a, b) => a.order - b.order);
+
+        // Collect Excel column names from the first chunk for validation
+        const excelHeaders = new Set<string>();
+        if (chunks.length > 0 && chunks[0].rows.length > 0) {
+          Object.keys(chunks[0].rows[0]).forEach(k => excelHeaders.add(k));
+        }
+
+        // Validate: every included sourceHeader must exist in the Excel file
+        for (const field of includedFields) {
+          if (field.sourceHeader && !excelHeaders.has(field.sourceHeader)) {
+            const available = [...excelHeaders].map(h => `"${h}"`).join(', ');
+            throw new Error(
+              `列名 "${field.sourceHeader}" 在文件 "${fileName}" 中不存在。` +
+              `Excel 实际列名: [${available}]`
+            );
+          }
+        }
+
+        // Build lookup: outputName → { sourceHeader, transforms }
+        const fieldMap = new Map<string, { sourceHeader: string; transforms: typeof includedFields[0]['transforms'] }>();
+        for (const f of includedFields) {
+          if (f.sourceHeader) fieldMap.set(f.outputName, { sourceHeader: f.sourceHeader, transforms: f.transforms });
+        }
+
         let fileRows = 0;
         for (const chunk of chunks) {
-          // Apply rule's field mapping (sourceHeader → outputName) with transforms
-          const transformed = transformEngine.apply(chunk, rule);
-
           let chunkRowIdx = 0;
-          for (const row of transformed.rows) {
-            // Build values matching settings field order
+          for (const row of chunk.rows) {
             const values: (string | bigint | number | null)[] = columnNames.map(col => {
-              const cell = row[col];
-              if (!cell || cell.value === null || cell.value === undefined) return null;
-              return cell.value;
+              const mapping = fieldMap.get(col);
+              if (!mapping) return null;
+              const cell = row[mapping.sourceHeader];
+              if (!cell || cell.raw === '' || cell.raw === undefined) return null;
+              return applyTransforms(cell.raw, mapping.transforms);
             });
             const sourceRow = (chunk.locator.detail.chunkStart as number ?? 0) + chunkRowIdx;
             values.push(file, sourceRow, extractedAt);
@@ -234,6 +257,119 @@ export function registerETLRoutes(
     return { tableName, rowsInserted: totalRows, fileStats, dbPath };
   }, { description: 'Extract all source files in a folder into a single BigTable table' });
 }
+
+// --- Inline transform helpers (replaces TransformEngine for mergeFolder) ---
+
+interface MergeFieldTransform {
+  kind: string;
+  trim?: boolean;
+  lowercase?: boolean;
+  uppercase?: boolean;
+  maxLength?: number;
+  nullValues?: string[];
+  outputType?: string;
+  emptyAs?: string;
+  negativePattern?: string;
+  thousandsSeparator?: string;
+  decimalSeparator?: string;
+  mapping?: Record<string, string>;
+  unmappedStrategy?: string;
+  caseSensitive?: boolean;
+  trueValues?: string[];
+  falseValues?: string[];
+}
+
+function applyTransforms(rawValue: string, transforms: MergeFieldTransform[]): string | bigint | null {
+  let current: string | bigint | null = rawValue;
+
+  // Sort transforms by standard order
+  const sorted = [...transforms].sort((a, b) => {
+    const orderA = TRANSFORM_KIND_ORDER[a.kind] ?? 99;
+    const orderB = TRANSFORM_KIND_ORDER[b.kind] ?? 99;
+    return orderA - orderB;
+  });
+
+  for (const t of sorted) {
+    switch (t.kind) {
+      case 'coerce_string': {
+        let s = String(current ?? '');
+        if (t.trim) s = s.trim();
+        if (t.lowercase) s = s.toLowerCase();
+        if (t.uppercase) s = s.toUpperCase();
+        if (t.nullValues?.includes(s)) { current = null; }
+        else if (t.maxLength && s.length > t.maxLength) s = s.slice(0, t.maxLength);
+        if (current !== null) current = s;
+        break;
+      }
+      case 'coerce_number': {
+        let s = String(current ?? '').trim();
+        if (s === '' || s === '-') {
+          current = t.outputType === 'cents'
+            ? (t.emptyAs === '0' ? 0n : null)
+            : (t.emptyAs === '0' ? '0' : null);
+          break;
+        }
+        let sign = 1n;
+        if (t.negativePattern === 'parentheses') {
+          const m = s.match(/^\((.+)\)$/);
+          if (m) { s = m[1]; sign = -1n; }
+        } else if (t.negativePattern === 'trailing_dash') {
+          if (s.endsWith('-')) s = '-' + s.slice(0, -1);
+        }
+        if (t.negativePattern === 'leading_dash' && s.startsWith('-')) {
+          sign = -1n; s = s.slice(1);
+        }
+        if (t.thousandsSeparator) s = s.replaceAll(t.thousandsSeparator, '');
+        if (t.decimalSeparator && t.decimalSeparator !== '.') s = s.replace(t.decimalSeparator, '.');
+        if (t.outputType === 'cents') {
+          const dot = s.indexOf('.');
+          if (dot === -1) { current = BigInt(s) * 100n * sign; }
+          else {
+            const intPart = s.slice(0, dot) || '0';
+            let frac = s.slice(dot + 1).slice(0, 2).padEnd(2, '0');
+            current = (BigInt(intPart) * 100n + BigInt(frac)) * sign;
+          }
+        } else {
+          current = sign === -1n ? '-' + s : s;
+        }
+        break;
+      }
+      case 'coerce_date': {
+        current = String(current ?? '');
+        break;
+      }
+      case 'coerce_enum': {
+        const s = String(current ?? '');
+        if (t.mapping?.[s]) { current = t.mapping[s]; }
+        else if (t.unmappedStrategy === 'null') { current = null; }
+        else if (t.unmappedStrategy === 'error') {
+          throw new Error(`Enum value "${s}" not in mapping`);
+        }
+        break;
+      }
+      case 'coerce_boolean': {
+        const s = String(current ?? '');
+        const cmp = t.caseSensitive ? s : s.toLowerCase();
+        const trues = t.caseSensitive ? (t.trueValues ?? []) : (t.trueValues ?? []).map(v => v.toLowerCase());
+        const falses = t.caseSensitive ? (t.falseValues ?? []) : (t.falseValues ?? []).map(v => v.toLowerCase());
+        if (trues.includes(cmp)) { current = 'true'; }
+        else if (falses.includes(cmp)) { current = 'false'; }
+        else { current = null; }
+        break;
+      }
+      default:
+        throw new Error(`Transform kind "${t.kind}" is not supported in mergeFolder`);
+    }
+  }
+  return current;
+}
+
+const TRANSFORM_KIND_ORDER: Record<string, number> = {
+  fill_down: 1, rename: 2,
+  coerce_string: 3, coerce_number: 3, coerce_date: 3, coerce_enum: 3, coerce_boolean: 3,
+  split_to_columns: 4, extract: 4, split_by_sign: 4,
+  derive: 5, filter_rows: 6,
+};
 
 /**
  * Match a rule's source pattern against a file path (forward-slash normalized).
