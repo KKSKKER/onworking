@@ -4,15 +4,20 @@ export interface BigTableField {
   name: string;
   type: TypeGuess;
   order: number;
+  isPrimaryKey?: boolean;
 }
 
 export interface BigTableSettings {
   name: string;
+  tableName: string;
+  autoIncrementId: boolean;
   fields: BigTableField[];
 }
 
 export class BigTable {
   name: string;
+  tableName = '';
+  autoIncrementId = true;
   folderPath: string;
   fields: BigTableField[] = [];
   sourceFiles: string[] = [];
@@ -26,6 +31,21 @@ export class BigTable {
 
   get settingsPath(): string { return this.folderPath + '/settings.json'; }
 
+  get primaryKeyFields(): BigTableField[] {
+    return this.fields.filter(f => f.isPrimaryKey);
+  }
+
+  /** Validate: if autoIncrementId is off, must have at least one primary key */
+  validate(): string | null {
+    if (!this.autoIncrementId && this.primaryKeyFields.length === 0) {
+      return '未启用自增主键时必须至少设置一个主键字段';
+    }
+    if (!this.tableName.trim()) {
+      return '请输入表名';
+    }
+    return null;
+  }
+
   async load(): Promise<void> {
     const res = await window.onworking.api.call('workspace.readFile', { path: this.settingsPath });
     if (res.success && res.data) {
@@ -33,7 +53,9 @@ export class BigTable {
       try {
         const settings = JSON.parse(s) as BigTableSettings;
         this.name = settings.name;
-        this.fields = settings.fields;
+        this.tableName = settings.tableName || '';
+        this.autoIncrementId = settings.autoIncrementId !== false;
+        this.fields = settings.fields || [];
       } catch { /* settings.json may not exist yet */ }
     }
     const scanRes = await window.onworking.api.call('etl.scanDir', { dir: this.folderPath + '/source' });
@@ -42,7 +64,12 @@ export class BigTable {
   }
 
   async save(): Promise<void> {
-    const settings: BigTableSettings = { name: this.name, fields: this.fields };
+    const settings: BigTableSettings = {
+      name: this.name,
+      tableName: this.tableName,
+      autoIncrementId: this.autoIncrementId,
+      fields: this.fields,
+    };
     await window.onworking.api.call('workspace.writeFile', {
       path: this.settingsPath,
       content: JSON.stringify(settings, null, 2),
@@ -73,5 +100,10 @@ export class BigTable {
   setFieldType(name: string, type: TypeGuess): void {
     const f = this.fields.find(f => f.name === name);
     if (f) { f.type = type; this.onChange(); }
+  }
+
+  setPrimaryKey(name: string, isPK: boolean): void {
+    const f = this.fields.find(f => f.name === name);
+    if (f) { f.isPrimaryKey = isPK; this.onChange(); }
   }
 }
