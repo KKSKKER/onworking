@@ -8,7 +8,7 @@ interface TableConfigStoreValue {
   revision: number;
   selectedFile: string;
   selectedRule: string;
-  selectFile: (file: string) => void;
+  selectFile: (file: string) => Promise<void>;
   selectRule: (ruleName: string) => void;
   getConfig: (file: string) => TableConfig | undefined;
   ensureConfig: (file: string) => TableConfig;
@@ -35,12 +35,20 @@ export const TableConfigStoreProvider: React.FC<{ children: React.ReactNode }> =
 
   const getConfig = useCallback((file: string) => configsRef.current.get(file), []);
 
-  const selectFile = useCallback((file: string) => {
+  const selectFile = useCallback(async (file: string) => {
     setSelectedFile(file);
     if (!file) return;
     const cfg = ensureConfig(file);
-    // Auto-detect fields on first select (if not already populated)
-    if (cfg.fields.length === 0) {
+    if (cfg.fields.length > 0) return; // already loaded
+
+    // Try loading a saved rule first, fall back to auto-detect
+    const fileName = file.replace(/^.*[\\/]/, '');
+    const baseName = fileName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9一-鿿_-]/g, '_');
+    const ruleName = `rule_${baseName}`;
+    const res = await window.onworking.api.call('rule.get', { name: ruleName });
+    if (res.success) {
+      cfg.loadFromRuleDefinition(res.data as RuleDefinition);
+    } else {
       cfg.detectFields();
     }
   }, [ensureConfig]);
