@@ -12,10 +12,10 @@ import { defaultParseConfig } from '../../common/types/parse-config';
 export function registerETLRoutes(
   router: APIRouter,
   db: DBConnection,
-  workspace: { sourceDir: string; rulesDir: string },
+  workspace: { sourceDir: string; rulesDir: string; root: string },
 ): void {
   registerParser(new ExcelParser());
-  const pipeline = new ETLPipeline(workspace.sourceDir, db);
+  const pipeline = new ETLPipeline(workspace.sourceDir, db, workspace.root);
   const ruleStore = new RuleStore(workspace.rulesDir);
 
   router.register('etl.preview', async (params) => {
@@ -32,20 +32,28 @@ export function registerETLRoutes(
 
   router.register('etl.scan', async () => {
     const sourceDir = workspace.sourceDir;
-    if (!fs.existsSync(sourceDir)) return [];
+    const root = workspace.root;
     const files: { path: string; name: string; size: number }[] = [];
-    const walk = (dir: string): void => {
+    const seen = new Set<string>();
+
+    const walk = (dir: string, baseLabel: string): void => {
+      if (!fs.existsSync(dir)) return;
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) walk(full);
-        else if (/\.(xlsx?|csv)$/i.test(entry.name)) {
-          files.push({ path: full, name: path.relative(sourceDir, full), size: fs.statSync(full).size });
-        }
+        if (entry.isDirectory()) { walk(full, baseLabel); continue; }
+        if (!/\.(xlsx?|csv)$/i.test(entry.name)) continue;
+        if (seen.has(full)) continue;
+        seen.add(full);
+        files.push({ path: full, name: path.relative(root, full), size: fs.statSync(full).size });
       }
     };
-    walk(sourceDir);
+
+    // Scan both source/ and the workspace root (user may drop files at root)
+    walk(sourceDir, path.relative(root, sourceDir));
+    if (root !== sourceDir) walk(root, path.relative(root, root));
+
     return files;
-  }, { description: 'Scan workspace source directory for Excel files' });
+  }, { description: 'Scan workspace for Excel files (root + source/)' });
 
   router.register('etl.execute', async (params) => {
     const { ruleName } = params as { ruleName: string };

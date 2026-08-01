@@ -1,5 +1,5 @@
 // onworking/src/renderer/components/RuleEditor.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface FieldInfo {
   sourceHeader: string;
@@ -11,15 +11,32 @@ interface FieldInfo {
 
 interface RuleEditorProps {
   filePath: string;
+  selectedRuleName: string;
   onPreview: () => void;
+  headerRow: number;
+  onHeaderRowChange: (hr: number) => void;
 }
 
-export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) => {
+export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, selectedRuleName, onPreview, headerRow, onHeaderRowChange }) => {
   const [fields, setFields] = useState<FieldInfo[]>([]);
-  const [headerRow, setHeaderRow] = useState(3);
   const [ruleName, setRuleName] = useState('');
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Load rule when user selects one from RuleList
+  useEffect(() => {
+    if (!selectedRuleName) return;
+    (async () => {
+      const res = await window.onworking.api.call('rule.get', { name: selectedRuleName });
+      if (res.success) {
+        const rule = res.data as Record<string, unknown>;
+        setRuleName(rule.name as string);
+        setFields((rule.fields as FieldInfo[]).map(f => ({ ...f, typeGuess: 'string' })));
+        onHeaderRowChange(((rule.sources as { headerRow: number }[])[0]?.headerRow) ?? 3);
+        setSaved(true);
+      }
+    })();
+  }, [selectedRuleName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const autoDetect = async () => {
     setLoading(true);
@@ -29,7 +46,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
       const data = res.data as { rule: { name: string; fields: FieldInfo[]; sources: { headerRow: number }[] } };
       setRuleName(data.rule.name);
       setFields(data.rule.fields.map(f => ({ ...f, typeGuess: 'string' })));
-      setHeaderRow(data.rule.sources[0]?.headerRow ?? 3);
+      onHeaderRowChange(data.rule.sources[0]?.headerRow ?? 3);
     }
     setLoading(false);
   };
@@ -80,7 +97,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
           style={{ padding: '4px 12px', background: '#007acc', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
           {loading ? '检测中...' : '🔍 自动检测字段'}
         </button>
-        <span>表头行: <input type="number" value={headerRow} onChange={e => setHeaderRow(Number(e.target.value))}
+        <span>表头行: <input type="number" value={headerRow} onChange={e => onHeaderRowChange(Number(e.target.value))}
           style={{ width: 50, padding: '2px 4px' }} /></span>
       </div>
 

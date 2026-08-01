@@ -44,6 +44,7 @@ export class ETLPipeline {
   constructor(
     private sourceDir: string,
     private db?: DBConnection,
+    private workspaceRoot?: string,
   ) {}
 
   async execute(
@@ -52,12 +53,19 @@ export class ETLPipeline {
   ): Promise<InsertResult> {
     const onProgress = options?.onProgress;
 
-    // Stage 1: Scan
+    // Stage 1: Scan — scan both source/ and workspace root
     onProgress?.({ stage: 'scan', ruleName: rule.name, filesProcessed: 0, totalFiles: 0, percentComplete: 0 });
-    const resolvedFiles = scanWorkspace(this.sourceDir, [rule]);
+    let resolvedFiles = scanWorkspace(this.sourceDir, [rule]);
+    if (this.workspaceRoot && this.workspaceRoot !== this.sourceDir) {
+      resolvedFiles = resolvedFiles.concat(
+        scanWorkspace(this.workspaceRoot, [rule]).filter(
+          f => !resolvedFiles.some(existing => existing.path === f.path),
+        ),
+      );
+    }
 
     if (resolvedFiles.length === 0) {
-      throw new Error(`No files matched rule "${rule.name}" in ${this.sourceDir}`);
+      throw new Error(`No files matched rule "${rule.name}" in ${this.sourceDir} or workspace root`);
     }
 
     // Stage 2: Parse — use registered parsers

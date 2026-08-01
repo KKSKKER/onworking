@@ -4,11 +4,12 @@ import { UniverSheet } from './UniverSheet';
 
 interface View2PreviewProps {
   filePath: string;
+  headerRow: number;
   onETLComplete: (result: Record<string, unknown>) => void;
 }
 
-export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLComplete }) => {
-  const [headerRow, setHeaderRow] = useState(3);
+export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, headerRow, onETLComplete }) => {
+  const [localHeaderRow, setLocalHeaderRow] = useState(headerRow);
   const [status, setStatus] = useState('');
   const [executing, setExecuting] = useState(false);
 
@@ -16,11 +17,11 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLCompl
     if (!filePath) return;
     setStatus('加载中...');
     const res = await window.onworking.api.call('etl.preview', {
-      file: filePath, sheetIndex: 0, headerRow, maxRows: 100,
+      file: filePath, sheetIndex: 0, headerRow: localHeaderRow, maxRows: 100,
     });
     if (res.success) {
       const snapshot = res.data as { totalRows: number; totalColumns: number };
-      setStatus(`已加载: ${snapshot.totalRows} 行, ${snapshot.totalColumns} 列 (表头行: ${headerRow})`);
+      setStatus(`已加载: ${snapshot.totalRows} 行, ${snapshot.totalColumns} 列 (表头行: ${localHeaderRow})`);
     } else {
       setStatus(`错误: ${res.error}`);
     }
@@ -53,7 +54,7 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLCompl
       <div style={{ padding: '4px 12px', borderBottom: '1px solid #ddd', display: 'flex', gap: 12,
         alignItems: 'center', fontSize: 12 }}>
         <span>文件: {filePath || '(未选择 — 请先在 View1 中选中文件)'}</span>
-        <span>表头行: <input type="number" value={headerRow} onChange={e => setHeaderRow(Number(e.target.value))}
+        <span>表头行: <input type="number" value={localHeaderRow} onChange={e => setLocalHeaderRow(Number(e.target.value))}
           style={{ width: 50, padding: '2px 4px' }} /></span>
         <button onClick={loadPreview} style={{ padding: '2px 8px' }}>加载预览</button>
         <button onClick={executeImport} disabled={executing}

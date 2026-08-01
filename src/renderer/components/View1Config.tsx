@@ -5,15 +5,16 @@ import { RuleList } from './RuleList';
 import { RuleEditor } from './RuleEditor';
 
 interface View1ConfigProps {
-  onNavigatePreview: (selectedFile: string) => void;
+  onNavigatePreview: (selectedFile: string, headerRow: number) => void;
 }
 
 export const View1Config: React.FC<View1ConfigProps> = ({ onNavigatePreview }) => {
   const [selectedFile, setSelectedFile] = useState('');
   const [selectedRule, setSelectedRule] = useState('');
+  const [headerRow, setHeaderRow] = useState(3);
 
   const handlePreview = () => {
-    onNavigatePreview(selectedFile);
+    onNavigatePreview(selectedFile, headerRow);
   };
 
   return (
@@ -23,7 +24,13 @@ export const View1Config: React.FC<View1ConfigProps> = ({ onNavigatePreview }) =
         <RuleList selectedRuleName={selectedRule} onSelectRule={setSelectedRule} />
       </div>
       <div style={{ flex: 1, overflow: 'auto' }}>
-        <RuleEditor filePath={selectedFile} onPreview={handlePreview} />
+        <RuleEditor
+          filePath={selectedFile}
+          selectedRuleName={selectedRule}
+          headerRow={headerRow}
+          onHeaderRowChange={setHeaderRow}
+          onPreview={handlePreview}
+        />
       </div>
     </div>
   );

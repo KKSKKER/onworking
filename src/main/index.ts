@@ -38,7 +38,7 @@ function initModules(ws: WorkspaceInfo): void {
   registerEntityRoutes(apiRouter, db);
   loadEntitiesFromDir(ws.entitiesDir);
   registerRuleRoutes(apiRouter, ws.rulesDir);
-  registerETLRoutes(apiRouter, db, { sourceDir: ws.sourceDir, rulesDir: ws.rulesDir });
+  registerETLRoutes(apiRouter, db, { sourceDir: ws.sourceDir, rulesDir: ws.rulesDir, root: ws.root });
 }
 
 function createWindow(): void {

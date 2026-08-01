@@ -24,6 +24,7 @@ export const App: React.FC = () => {
   const [fileCount, setFileCount] = useState(0);
   const [lastETL, setLastETL] = useState('');
   const [selectedFile, setSelectedFile] = useState('');
+  const [headerRow, setHeaderRow] = useState(3);
   const [etlResult, setETLResult] = useState<Record<string, unknown>>();
 
   React.useEffect(() => {
@@ -48,14 +49,16 @@ export const App: React.FC = () => {
       />
       <div style={{ flex: 1, overflow: 'hidden' }}>
         {activeView === 'config' && (
-          <View1Config onNavigatePreview={(file) => {
+          <View1Config onNavigatePreview={(file, hr) => {
             setSelectedFile(file);
+            setHeaderRow(hr);
             setActiveView('preview');
           }} />
         )}
         {activeView === 'preview' && (
           <View2Preview
             filePath={selectedFile}
+            headerRow={headerRow}
             onETLComplete={(result) => {
               setETLResult(result);
               setLastETL(new Date().toLocaleTimeString());
