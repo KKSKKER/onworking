@@ -7,6 +7,7 @@ import { excelToUniverSnapshot } from './plugins/onw-excel/bridge';
 import { registerParser } from './etl/pipeline';
 import { defaultParseConfig } from '../common/types/parse-config';
 import { getEntity, listEntities, registerEntity } from './entity/entity-registry';
+import { RuleStore, autoGenerateRule } from './rules/rule-store';
 
 // Register the onw-excel parser on startup
 registerParser(new ExcelParser());
@@ -123,6 +124,73 @@ app.whenReady().then(() => {
   }, { description: 'Query entity data' });
 
   apiRouter.register('entity.list', async () => listEntities());
+
+  apiRouter.register('rule.autoGenerate', async (params) => {
+    const { file } = params as { file: string };
+    if (!file) throw new Error('rule.autoGenerate requires a "file" parameter');
+
+    const structure = excelParser.scan(file);
+    const fileName = file.replace(/^.*[\\/]/, '');
+    if (structure.sheets.length === 0) throw new Error('No sheets found');
+
+    // Scan the first sheet to profile its columns
+    const sheetIndex = 0;
+    const config = defaultParseConfig(file, sheetIndex, 1); // start with row 1 as tentative header
+    const chunks = excelParser.parse(file, config);
+
+    // Build simple column profiles from sample data
+    const allRows = chunks.flatMap(c => c.rows).slice(0, 50);
+    const headers = [...new Set(allRows.flatMap(r => Object.keys(r)))];
+
+    const profiles = headers.map((h, i) => {
+      const values = allRows.map(r => r[h]?.raw ?? '').filter(v => v !== '');
+      const nonNull = values.length;
+      const nullCt = allRows.length - nonNull;
+
+      // Simple type guess — strip thousands separators/currency before numeric check,
+      // and detect common date formats so the number/date branches of autoGenerateRule
+      // are exercised for accounting-style ledgers.
+      const looksNumeric = (v: string): boolean => {
+        const cleaned = v.replace(/[,，\s¥$￥]/g, '').replace(/^\(.*\)$/, '-1');
+        return cleaned !== '' && !isNaN(Number(cleaned));
+      };
+      const looksDate = (v: string): boolean => {
+        const t = v.trim();
+        return /^\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?$/.test(t)
+          || /^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(t);
+      };
+      const numCount = values.filter(looksNumeric).length;
+      const dateCount = values.filter(looksDate).length;
+      const n = Math.max(nonNull, 1);
+      const primary = numCount / n > 0.8 ? 'number' : dateCount / n > 0.8 ? 'date' : 'string';
+      const confidence = Math.max(numCount, dateCount) / n;
+      const evidence = primary === 'number' ? '数值占比高'
+        : primary === 'date' ? '日期格式占比高'
+        : '文本为主';
+
+      return {
+        colLetter: String.fromCharCode(65 + i),
+        headerText: h,
+        nonNullCount: nonNull,
+        nullCount: nullCt,
+        nullRate: allRows.length > 0 ? nullCt / allRows.length : 0,
+        typeGuess: { primary, confidence, evidence },
+        sampleValues: values.slice(0, 5),
+      };
+    });
+
+    // Simplified — a real implementation would scan rows 1-10 for the best header row
+    const headerRow = 1;
+
+    const rule = autoGenerateRule(file, fileName, structure.sheets, sheetIndex, headerRow, profiles);
+
+    // Save to rules directory
+    const rulesDir = path.join(app.getPath('userData'), 'rules');
+    const store = new RuleStore(rulesDir);
+    store.save(rule);
+
+    return { rule, savedTo: rulesDir };
+  }, { description: 'Auto-generate extraction rule from file structure' });
 
   // Register a test entity for spike verification
   registerEntity({
