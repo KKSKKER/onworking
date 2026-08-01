@@ -7,6 +7,8 @@ import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
 import { UniverUIPlugin } from '@univerjs/ui';
 import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui';
 
+import { registerExcelShortcuts } from '../shortcuts/excel-shortcuts';
+
 import '@univerjs/ui/lib/index.css';
 import '@univerjs/sheets-ui/lib/index.css';
 
@@ -39,6 +41,8 @@ export const UniverSheet: React.FC<UniverSheetProps> = ({ style, onReady }) => {
     univerRef.current = univer;
 
     univer.createUnit(UniverInstanceType.UNIVER_SHEET, {});
+
+    registerExcelShortcuts(univer);
 
     onReady?.(univer);
 
