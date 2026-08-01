@@ -1,11 +1,15 @@
 // onworking/src/renderer/components/View3Results.tsx
 import React, { useEffect, useState } from 'react';
+import { useBigTableStore } from '../state/BigTableStore';
 
-interface View3ResultsProps {
-  etlResult?: Record<string, unknown>;
-}
+interface View3ResultsProps {}
 
-export const View3Results: React.FC<View3ResultsProps> = ({ etlResult }) => {
+export const View3Results: React.FC<View3ResultsProps> = () => {
+  const { folders, workspaceRoot } = useBigTableStore();
+  const [mergeFolder, setMergeFolder] = useState('');
+  const [merging, setMerging] = useState(false);
+  const [mergeResult, setMergeResult] = useState<Record<string, unknown>>();
+
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTable, setSelectedTable] = useState('');
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
@@ -20,7 +24,7 @@ export const View3Results: React.FC<View3ResultsProps> = ({ etlResult }) => {
         if (allTables.length > 0) setSelectedTable(allTables[0]);
       }
     });
-  }, [etlResult]);
+  }, []);
 
   useEffect(() => {
     if (!selectedTable) return;
@@ -33,7 +37,7 @@ export const View3Results: React.FC<View3ResultsProps> = ({ etlResult }) => {
       }
       setLoading(false);
     });
-  }, [selectedTable, etlResult]);
+  }, [selectedTable]);
 
   const [exporting, setExporting] = useState(false);
 
@@ -64,11 +68,40 @@ export const View3Results: React.FC<View3ResultsProps> = ({ etlResult }) => {
     URL.revokeObjectURL(url);
   };
 
+  const doMerge = async () => {
+    if (!mergeFolder) return;
+    setMerging(true);
+    const folderPath = workspaceRoot + '/' + mergeFolder;
+    const res = await window.onworking.api.call('etl.mergeFolder', { folderPath });
+    if (res.success) {
+      setMergeResult(res.data as Record<string, unknown>);
+      // Reload tables
+      const dbRes = await window.onworking.api.call('db.getTables');
+      if (dbRes.success) {
+        const allTables = (dbRes.data as string[]).filter(t => t !== '_lineage' && !t.startsWith('sqlite_'));
+        setTables(allTables);
+        if (allTables.length > 0) setSelectedTable(allTables[0]);
+      }
+    }
+    setMerging(false);
+  };
+
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontSize: 12 }}>
       <div style={{ padding: '4px 12px', borderBottom: '1px solid #ddd', display: 'flex', gap: 12, alignItems: 'center' }}>
+        <span>大表文件夹:</span>
+        <select value={mergeFolder} onChange={e => setMergeFolder(e.target.value)} style={{ padding: '2px 4px' }}>
+          <option value="">选择...</option>
+          {folders.map(f => <option key={f} value={f}>{f}</option>)}
+        </select>
+        <button onClick={doMerge} disabled={merging || !mergeFolder}
+          style={{ padding: '2px 12px', background: '#28a745', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
+          {merging ? '合并中...' : '合并生成'}
+        </button>
+        {mergeResult && <span style={{ fontSize: 11 }}>导入 {(mergeResult as Record<string, unknown>).rowsInserted as number} 行</span>}
+        <span style={{ width: 1, height: 16, background: '#ddd' }} />
         <span>合并数据表:</span>
         <select value={selectedTable} onChange={e => setSelectedTable(e.target.value)} style={{ padding: '2px 4px' }}>
           {tables.map(t => <option key={t} value={t}>{t}</option>)}
@@ -81,7 +114,7 @@ export const View3Results: React.FC<View3ResultsProps> = ({ etlResult }) => {
 
       <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
         {loading ? <div>加载中...</div>
-          : rows.length === 0 ? <div style={{ color: '#999', padding: 20 }}>暂无数据。请先在 View2 执行导入。</div>
+          : rows.length === 0 ? <div style={{ color: '#999', padding: 20 }}>暂无数据。请先选择文件夹并点击「合并生成」。</div>
           : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <thead>
@@ -105,13 +138,6 @@ export const View3Results: React.FC<View3ResultsProps> = ({ etlResult }) => {
             </table>
           )}
       </div>
-
-      {etlResult && (
-        <div style={{ padding: '4px 12px', borderTop: '1px solid #ddd', background: '#f9f9f9', fontSize: 11 }}>
-          对账清单: 导入 {(etlResult as Record<string, unknown>).rowsInserted as number} 行 |
-          表: {(etlResult as Record<string, unknown>).tableName as string}
-        </div>
-      )}
     </div>
   );
 };

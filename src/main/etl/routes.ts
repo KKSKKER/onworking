@@ -94,4 +94,68 @@ export function registerETLRoutes(
     const total = (count[0] as Record<string, number>).total;
     return { rows, total, limit: l, offset: o };
   }, { description: 'Get paginated data from an ETL table' });
+
+  router.register('etl.mergeFolder', async (params) => {
+    const { folderPath } = params as { folderPath: string };
+    const fs = await import('node:fs');
+    const pathMod = await import('node:path');
+    const sourceDir = pathMod.join(folderPath, 'source');
+    const rulesDir = pathMod.join(folderPath, '.onworking', 'rules');
+    const dbPath = pathMod.join(folderPath, '.onworking', 'db', 'onworking.db');
+
+    if (!fs.existsSync(sourceDir)) throw new Error('source/ not found in folder');
+
+    // Create a DB connection for this folder
+    const { DBConnection } = await import('../db/connection');
+    const folderDb = new DBConnection(dbPath);
+
+    // Scan source files
+    const files: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = pathMod.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(xlsx?|csv)$/i.test(entry.name)) files.push(full);
+      }
+    };
+    walk(sourceDir);
+
+    // Load rules
+    const { RuleStore } = await import('../rules/rule-store');
+    const store = new RuleStore(rulesDir);
+    const allRules = store.listAll();
+
+    // For each file, find matching rule and run ETL
+    const tableName = pathMod.basename(folderPath).replace(/[^a-zA-Z0-9一-鿿_]/g, '_').toLowerCase();
+    const { ETLPipeline, registerParser } = await import('./pipeline');
+    const { ExcelParser } = await import('../plugins/onw-excel/parser');
+    registerParser(new ExcelParser());
+    const pipeline = new ETLPipeline(sourceDir, folderDb, folderPath);
+
+    let totalRows = 0;
+    const fileStats: { file: string; rows: number; error?: string }[] = [];
+
+    for (const file of files) {
+      const fileName = pathMod.basename(file);
+      // Find matching rule — use first rule whose pattern matches
+      const rule = allRules.find(r => {
+        const pattern = r.sources[0]?.pattern;
+        return pattern && new RegExp(pattern.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*').replace(/\./g, '\\.')).test(fileName);
+      });
+      if (!rule) {
+        fileStats.push({ file: fileName, rows: 0, error: 'No matching rule' });
+        continue;
+      }
+      try {
+        const result = await pipeline.execute(rule);
+        totalRows += result.rowsInserted;
+        fileStats.push({ file: fileName, rows: result.rowsInserted });
+      } catch (e) {
+        fileStats.push({ file: fileName, rows: 0, error: (e as Error).message });
+      }
+    }
+
+    folderDb.close();
+    return { tableName, rowsInserted: totalRows, fileStats, dbPath };
+  }, { description: 'Extract all source files in a folder into a single DB table' });
 }

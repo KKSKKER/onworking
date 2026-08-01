@@ -6,6 +6,7 @@ import { View1Config } from './components/View1Config';
 import { View2Preview } from './components/View2Preview';
 import { View3Results } from './components/View3Results';
 import { useTableConfigStore } from './state/TableConfigStore';
+import { BigTableStoreProvider } from './state/BigTableStore';
 
 declare global {
   interface Window {
@@ -41,24 +42,26 @@ export const App: React.FC = () => {
   const workspaceName = (workspace.name as string) ?? (workspace.root as string ?? '').replace(/^.*[\\/]/, '');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-      <TopBar
-        workspaceName={workspaceName}
-        activeView={activeView}
-        onViewChange={setActiveView}
-      />
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        {activeView === 'config' && (
-          <View1Config onPreview={() => setActiveView('preview')} />
-        )}
-        {activeView === 'preview' && (
-          <View2Preview filePath={selectedFile} />
-        )}
-        {activeView === 'results' && (
-          <View3Results etlResult={etlResult} />
-        )}
+    <BigTableStoreProvider workspaceRoot={String(workspace.root ?? '')}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
+        <TopBar
+          workspaceName={workspaceName}
+          activeView={activeView}
+          onViewChange={setActiveView}
+        />
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          {activeView === 'config' && (
+            <View1Config onPreview={() => setActiveView('preview')} />
+          )}
+          {activeView === 'preview' && (
+            <View2Preview filePath={selectedFile} />
+          )}
+          {activeView === 'results' && (
+            <View3Results />
+          )}
+        </div>
+        <StatusBar status={status} fileCount={fileCount} lastETL={lastETL} />
       </div>
-      <StatusBar status={status} fileCount={fileCount} lastETL={lastETL} />
-    </div>
+    </BigTableStoreProvider>
   );
 };

@@ -5,6 +5,7 @@ import { BigTable } from './BigTable';
 
 interface BigTableStoreValue {
   folders: string[];
+  workspaceRoot: string;
   selectedFolder: string;
   selectFolder: (name: string) => Promise<void>;
   getBigTable: (name: string) => BigTable | undefined;
@@ -63,7 +64,7 @@ export const BigTableStoreProvider: React.FC<{ children: React.ReactNode; worksp
   // Scan on mount
   React.useEffect(() => { scanFolders(); }, [scanFolders]);
 
-  const value: BigTableStoreValue = { folders, selectedFolder, selectFolder, getBigTable, ensureBigTable, createFolder, revision };
+  const value: BigTableStoreValue = { folders, workspaceRoot, selectedFolder, selectFolder, getBigTable, ensureBigTable, createFolder, revision };
   return React.createElement(BigTableContext.Provider, { value }, children);
 };
 
