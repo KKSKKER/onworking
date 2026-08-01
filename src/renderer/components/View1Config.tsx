@@ -1,26 +1,26 @@
 // onworking/src/renderer/components/View1Config.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import { FileTree } from './FileTree';
 import { RuleList } from './RuleList';
 import { RuleEditor } from './RuleEditor';
+import { useTableConfigStore } from '../state/TableConfigStore';
 
 interface View1ConfigProps {
-  onNavigatePreview: (selectedFile: string) => void;
+  onPreview: () => void;
 }
 
-export const View1Config: React.FC<View1ConfigProps> = ({ onNavigatePreview }) => {
-  const [selectedFile, setSelectedFile] = useState('');
-  const [selectedRule, setSelectedRule] = useState('');
+export const View1Config: React.FC<View1ConfigProps> = ({ onPreview }) => {
+  const { selectedFile, selectedRule, selectFile, selectRule } = useTableConfigStore();
 
   const handlePreview = () => {
-    onNavigatePreview(selectedFile);
+    onPreview();
   };
 
   return (
     <div style={{ display: 'flex', height: '100%' }}>
       <div style={{ width: '30%', minWidth: 200, borderRight: '1px solid #ddd', overflow: 'auto', padding: 8 }}>
-        <FileTree selectedFile={selectedFile} onSelectFile={setSelectedFile} />
-        <RuleList selectedRuleName={selectedRule} onSelectRule={setSelectedRule} />
+        <FileTree selectedFile={selectedFile} onSelectFile={selectFile} />
+        <RuleList selectedRuleName={selectedRule} onSelectRule={selectRule} />
       </div>
       <div style={{ flex: 1, overflow: 'auto' }}>
         <RuleEditor filePath={selectedFile} onPreview={handlePreview} />

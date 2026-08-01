@@ -5,6 +5,7 @@ import { WorkspaceStart } from './components/WorkspaceStart';
 import { View1Config } from './components/View1Config';
 import { View2Preview } from './components/View2Preview';
 import { View3Results } from './components/View3Results';
+import { useTableConfigStore } from './state/TableConfigStore';
 
 declare global {
   interface Window {
@@ -23,8 +24,8 @@ export const App: React.FC = () => {
   const [status, setStatus] = useState('就绪');
   const [fileCount, setFileCount] = useState(0);
   const [lastETL, setLastETL] = useState('');
-  const [selectedFile, setSelectedFile] = useState('');
   const [etlResult, setETLResult] = useState<Record<string, unknown>>();
+  const { selectedFile } = useTableConfigStore();
 
   React.useEffect(() => {
     if (!workspace) return;
@@ -48,10 +49,7 @@ export const App: React.FC = () => {
       />
       <div style={{ flex: 1, overflow: 'hidden' }}>
         {activeView === 'config' && (
-          <View1Config onNavigatePreview={(file) => {
-            setSelectedFile(file);
-            setActiveView('preview');
-          }} />
+          <View1Config onPreview={() => setActiveView('preview')} />
         )}
         {activeView === 'preview' && (
           <View2Preview

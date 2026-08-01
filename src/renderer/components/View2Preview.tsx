@@ -1,6 +1,7 @@
 // onworking/src/renderer/components/View2Preview.tsx
 import React, { useRef, useState } from 'react';
 import { UniverSheet } from './UniverSheet';
+import { useTableConfig, useTableConfigStore } from '../state/TableConfigStore';
 import type { Univer } from '@univerjs/core';
 
 interface View2PreviewProps {
@@ -10,9 +11,12 @@ interface View2PreviewProps {
 
 export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLComplete }) => {
   const univerRef = useRef<Univer | null>(null);
-  const [headerRow, setHeaderRow] = useState(3);
+  const config = useTableConfig(filePath);
+  const { selectedRule } = useTableConfigStore();
   const [status, setStatus] = useState('');
   const [executing, setExecuting] = useState(false);
+
+  const headerRow = config?.headerRow ?? 1;
 
   const loadPreview = async () => {
     if (!filePath) return;
@@ -31,15 +35,12 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLCompl
   const executeImport = async () => {
     setExecuting(true);
     setStatus('导入中...');
-    const rulesRes = await window.onworking.api.call('rule.list');
-    if (!rulesRes.success || !(rulesRes.data as unknown[]).length) {
-      setStatus('错误: 请先在 View1 中保存规则');
+    const ruleName = selectedRule || (config?.ruleName || '');
+    if (!ruleName) {
+      setStatus('错误: 请先在 View1 中保存/选择规则');
       setExecuting(false);
       return;
     }
-    const rules = rulesRes.data as { name: string }[];
-    const ruleName = rules[0].name;
-
     const res = await window.onworking.api.call('etl.execute', { ruleName });
     if (res.success) {
       setStatus('导入完成!');
@@ -55,7 +56,7 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, onETLCompl
       <div style={{ padding: '4px 12px', borderBottom: '1px solid #ddd', display: 'flex', gap: 12,
         alignItems: 'center', fontSize: 12 }}>
         <span>文件: {filePath || '(未选择 — 请先在 View1 中选中文件)'}</span>
-        <span>表头行: <input type="number" value={headerRow} onChange={e => setHeaderRow(Number(e.target.value))}
+        <span>表头行: <input type="number" value={headerRow} onChange={e => config?.setHeaderRow(Number(e.target.value))}
           style={{ width: 50, padding: '2px 4px' }} /></span>
         <button onClick={loadPreview} style={{ padding: '2px 8px' }}>加载预览</button>
         <button onClick={executeImport} disabled={executing}
