@@ -6,6 +6,21 @@
 import type { FieldTransform } from './transforms';
 import type { ParseConfig } from './parse-config';
 
+// --- Source Parser 插件接口 ---
+
+export interface SourceStructure {
+  file: string;
+  parser: string;
+  sheets: { index: number; name: string; rowCount: number; colCount: number }[];
+}
+
+export interface SourceParserDefinition {
+  name: string;
+  extensions: string[];
+  scan(file: string): SourceStructure;
+  parse(file: string, config: ParseConfig): ParsedChunk[];
+}
+
 // --- Source Parser 输出 (§4.2) ---
 
 export interface CellData {

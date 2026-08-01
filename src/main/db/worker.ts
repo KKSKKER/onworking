@@ -24,7 +24,7 @@ parentPort!.on('message', (msg: WorkerMessage) => {
   try {
     switch (msg.type) {
       case 'open': {
-        db = new Database(msg.dbPath!, { /* no WAL for worker */ });
+        db = new Database(msg.dbPath!, { /* WAL enabled below */ });
         // Enable WAL mode for better concurrent read performance
         db.pragma('journal_mode = WAL');
         send(msg.id, { ok: true });

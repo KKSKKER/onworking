@@ -3,8 +3,7 @@
 // Stage 1-5 ETL 编排器 — SOURCE_LAYER_SPEC.md §4 全流程
 // ============================================================
 
-import type { RuleDefinition, InsertResult, ParsedChunk } from '../../common/types/etl-types';
-import type { SourceParserDefinition } from '../plugins/onw-excel/index';
+import type { RuleDefinition, InsertResult, ParsedChunk, SourceParserDefinition } from '../../common/types/etl-types';
 import type { DBConnection } from '../db/connection';
 import { scanWorkspace } from './scanner';
 import { ruleToParseConfigs } from '../rules/rule-compiler';
