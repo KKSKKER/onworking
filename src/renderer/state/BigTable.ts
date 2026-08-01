@@ -69,4 +69,9 @@ export class BigTable {
     this.fields.forEach((f, i) => { f.order = i + 1; });
     this.onChange();
   }
+
+  setFieldType(name: string, type: TypeGuess): void {
+    const f = this.fields.find(f => f.name === name);
+    if (f) { f.type = type; this.onChange(); }
+  }
 }
