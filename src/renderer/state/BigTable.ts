@@ -4,7 +4,7 @@ export interface BigTableField {
   name: string;
   type: TypeGuess;
   order: number;
-  isPrimaryKey?: boolean;
+  isPrimaryKey: boolean;
 }
 
 export interface BigTableSettings {
@@ -16,9 +16,9 @@ export interface BigTableSettings {
 
 export class BigTable {
   name: string;
-  tableName = '';
-  autoIncrementId = true;
   folderPath: string;
+  tableName: string;
+  autoIncrementId = false;
   fields: BigTableField[] = [];
   sourceFiles: string[] = [];
   private onChange: () => void;
@@ -26,24 +26,15 @@ export class BigTable {
   constructor(opts: { name: string; folderPath: string; onChange: () => void }) {
     this.name = opts.name;
     this.folderPath = opts.folderPath;
+    this.tableName = opts.name; // default target table name = folder name
     this.onChange = opts.onChange;
   }
 
   get settingsPath(): string { return this.folderPath + '/settings.json'; }
 
+  /** Fields marked as primary key (used when autoIncrementId is off). */
   get primaryKeyFields(): BigTableField[] {
     return this.fields.filter(f => f.isPrimaryKey);
-  }
-
-  /** Validate: if autoIncrementId is off, must have at least one primary key */
-  validate(): string | null {
-    if (!this.autoIncrementId && this.primaryKeyFields.length === 0) {
-      return '未启用自增主键时必须至少设置一个主键字段';
-    }
-    if (!this.tableName.trim()) {
-      return '请输入表名';
-    }
-    return null;
   }
 
   async load(): Promise<void> {
@@ -52,10 +43,10 @@ export class BigTable {
       const s = (res.data as { content: string }).content;
       try {
         const settings = JSON.parse(s) as BigTableSettings;
-        this.name = settings.name;
-        this.tableName = settings.tableName || '';
-        this.autoIncrementId = settings.autoIncrementId !== false;
-        this.fields = settings.fields || [];
+        this.name = settings.name || this.name;
+        this.tableName = settings.tableName || this.name;
+        this.autoIncrementId = !!settings.autoIncrementId;
+        this.fields = (settings.fields || []).map(f => ({ ...f, isPrimaryKey: !!f.isPrimaryKey }));
       } catch { /* settings.json may not exist yet */ }
     }
     const scanRes = await window.onworking.api.call('etl.scanDir', { dir: this.folderPath + '/source' });
@@ -79,7 +70,7 @@ export class BigTable {
 
   addField(name: string, type: TypeGuess): void {
     if (this.fields.find(f => f.name === name)) return;
-    this.fields.push({ name, type, order: this.fields.length + 1 });
+    this.fields.push({ name, type, order: this.fields.length + 1, isPrimaryKey: false });
     this.onChange();
   }
 
@@ -102,8 +93,29 @@ export class BigTable {
     if (f) { f.type = type; this.onChange(); }
   }
 
-  setPrimaryKey(name: string, isPK: boolean): void {
+  setPrimaryKey(name: string, checked: boolean): void {
     const f = this.fields.find(f => f.name === name);
-    if (f) { f.isPrimaryKey = isPK; this.onChange(); }
+    if (f) { f.isPrimaryKey = checked; this.onChange(); }
+  }
+
+  setTableName(name: string): void {
+    this.tableName = name;
+    this.onChange();
+  }
+
+  setAutoIncrementId(v: boolean): void {
+    this.autoIncrementId = v;
+    this.onChange();
+  }
+
+  /** Validate BigTable settings before save. */
+  validate(): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    if (!this.tableName.trim()) errors.push('表名不能为空');
+    if (this.fields.length === 0) errors.push('请至少添加一个字段');
+    if (!this.autoIncrementId && this.primaryKeyFields.length === 0) {
+      errors.push('请选择至少一个主键字段，或开启自增主键');
+    }
+    return { valid: errors.length === 0, errors };
   }
 }

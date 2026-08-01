@@ -1,7 +1,6 @@
 // onworking/src/renderer/components/RuleEditor.tsx
 import React, { useState } from 'react';
 import { useTableConfig } from '../state/TableConfigStore';
-import type { TypeGuess } from '../state/TableConfig';
 import { SearchableSelect } from './SearchableSelect';
 import { useBigTable, useBigTableStore } from '../state/BigTableStore';
 
@@ -54,9 +53,8 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f5f5f5', textAlign: 'left' }}>
-                <th style={{ padding: 4 }}>☑</th>
+                <th style={{ padding: 4, width: 36 }}>☑</th>
                 <th style={{ padding: 4 }}>字段名</th>
-                <th style={{ padding: 4 }}>类型</th>
                 <th style={{ padding: 4 }}>映射字段</th>
               </tr>
             </thead>
@@ -67,14 +65,6 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
                     <input type="checkbox" checked={f.included} onChange={() => config.toggleField(i)} />
                   </td>
                   <td style={{ padding: 4 }}>{f.sourceHeader}</td>
-                  <td style={{ padding: 4 }}>
-                    <select value={f.typeGuess} onChange={e => config.setFieldType(i, e.target.value as TypeGuess)} style={{ fontSize: 11 }}>
-                      <option value="string">文本</option>
-                      <option value="cents">金额(分)</option>
-                      <option value="number">数字</option>
-                      <option value="date">日期</option>
-                    </select>
-                  </td>
                   <td style={{ padding: 4 }}>
                     <SearchableSelect
                       value={f.mappedField}
