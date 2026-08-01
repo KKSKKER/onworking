@@ -3,6 +3,10 @@
 // Entity 定义注册表 — Spike 2.2 (minimal, no YAML yet)
 // ============================================================
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as yaml from 'js-yaml';
+
 /** Minimal Entity attribute for Spike 2.2 */
 export interface EntityAttribute {
   name: string;
@@ -30,4 +34,18 @@ export function getEntity(name: string): EntityDef | undefined {
 
 export function listEntities(): string[] {
   return Array.from(registry.keys());
+}
+
+/**
+ * Load all Entity definitions from a directory of YAML files.
+ * Silently skips the directory if it does not exist.
+ */
+export function loadEntitiesFromDir(entitiesDir: string): void {
+  if (!fs.existsSync(entitiesDir)) return;
+  const files = fs.readdirSync(entitiesDir).filter(f => f.endsWith('.yaml') || f.endsWith('.yml'));
+  for (const file of files) {
+    const raw = fs.readFileSync(path.join(entitiesDir, file), 'utf-8');
+    const def = yaml.load(raw) as EntityDef;
+    registry.set(def.name, def);
+  }
 }
