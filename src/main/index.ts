@@ -34,6 +34,8 @@ function initModules(ws: WorkspaceInfo): void {
   // Close previous DB if reopening
   if (db) { db.close(); }
   db = new DBConnection(ws.dbPath);
+  // Force physical creation of the DB file
+  db.exec('CREATE TABLE IF NOT EXISTS _workspace_meta (key TEXT PRIMARY KEY, value TEXT)').catch(() => {});
   registerDBRoutes(apiRouter, db);
   registerEntityRoutes(apiRouter, db);
   loadEntitiesFromDir(ws.entitiesDir);
