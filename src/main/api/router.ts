@@ -54,3 +54,4 @@ apiRouter.register('workspace.listFiles', async () => [], { description: 'List f
 apiRouter.register('rule.list', async () => [], { description: 'List all extraction rules' });
 apiRouter.register('db.getTables', async () => [], { description: 'List all database tables' });
 apiRouter.register('entity.list', async () => [], { description: 'List all defined entities' });
+apiRouter.register('entity.query', async () => [], { description: 'Query entity data' });

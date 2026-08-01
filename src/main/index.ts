@@ -6,6 +6,7 @@ import { ExcelParser } from './plugins/onw-excel';
 import { excelToUniverSnapshot } from './plugins/onw-excel/bridge';
 import { registerParser } from './etl/pipeline';
 import { defaultParseConfig } from '../common/types/parse-config';
+import { getEntity, listEntities, registerEntity } from './entity/entity-registry';
 
 // Register the onw-excel parser on startup
 registerParser(new ExcelParser());
@@ -88,6 +89,54 @@ app.whenReady().then(() => {
     const snapshot = excelToUniverSnapshot(chunks, sheetName);
     return snapshot;
   }, { description: 'Preview Excel file as Univer snapshot' });
+
+  apiRouter.register('entity.query', async (params) => {
+    const { name, filters } = params as {
+      name: string;
+      filters?: Record<string, string>;
+    };
+
+    const entity = getEntity(name);
+    if (!entity) throw new Error(`Entity not found: ${name}`);
+
+    // Build SQL: SELECT attrs FROM table WHERE filters GROUP BY grain
+    const selects = entity.attributes.map(a => `${a.expression} AS "${a.name}"`);
+    const sql = [`SELECT ${selects.join(', ')}`, `FROM "${entity.table}"`];
+
+    const whereClauses: string[] = [];
+    const whereParams: unknown[] = [];
+    if (filters) {
+      for (const [key, value] of Object.entries(filters)) {
+        whereClauses.push(`"${key}" = ?`);
+        whereParams.push(value);
+      }
+    }
+    if (whereClauses.length > 0) {
+      sql.push(`WHERE ${whereClauses.join(' AND ')}`);
+    }
+
+    if (entity.grain.length > 0) {
+      sql.push(`GROUP BY ${entity.grain.map(g => `"${g}"`).join(', ')}`);
+    }
+
+    return db.execute(sql.join(' '), whereParams.length > 0 ? whereParams : undefined);
+  }, { description: 'Query entity data' });
+
+  apiRouter.register('entity.list', async () => listEntities());
+
+  // Register a test entity for spike verification
+  registerEntity({
+    name: 'account',
+    table: 'journal_ledger',
+    grain: ['account_code'],
+    attributes: [
+      { name: 'code', type: 'string', expression: 'account_code' },
+      { name: 'name', type: 'string', expression: 'account_name' },
+      { name: 'total_debit', type: 'cents', expression: 'SUM(debit_amount_cents)' },
+      { name: 'total_credit', type: 'cents', expression: 'SUM(credit_amount_cents)' },
+      { name: 'balance', type: 'cents', expression: 'SUM(debit_amount_cents) - SUM(credit_amount_cents)' },
+    ],
+  });
 
   app.on('before-quit', () => {
     db.close();

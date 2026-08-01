@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { UniverSheet } from './components/UniverSheet';
+import { FormulaBar } from './components/FormulaBar';
 import type { Univer } from '@univerjs/core';
 
 declare global {
@@ -89,6 +90,36 @@ export const App: React.FC = () => {
         <button onClick={handleLoadTestFile} style={{ padding: '2px 8px' }}>加载测试文件</button>
         <span>{status}</span>
       </div>
+      <FormulaBar
+        onEvaluate={async (formula) => {
+          // Parse ENTITY(entity, attr, dimKey?, dimVal?)
+          const match = formula.match(/^=ENTITY\("(\w+)",\s*"(\w+)"(?:,\s*"(\w+)",\s*"([^"]+)")?\)$/);
+          if (!match) return 'ERROR: parse failed';
+
+          const [, entityName, attrName, dimKey, dimVal] = match;
+          const filters: Record<string, string> = {};
+          if (dimKey && dimVal) filters[dimKey] = dimVal;
+
+          const res = await window.onworking.api.call('entity.query', {
+            name: entityName,
+            filters: Object.keys(filters).length > 0 ? filters : undefined,
+          });
+
+          if (!res.success || !res.data) return `ERROR: ${res.error}`;
+
+          const rows = res.data as Record<string, unknown>[];
+          if (rows.length === 0) return 'null';
+          if (rows.length === 1) return String(rows[0][attrName] ?? 'null');
+
+          // Multiple rows: aggregate sum for cents, count for others
+          const values = rows.map(r => r[attrName]);
+          const allNums = values.every(v => typeof v === 'number' || typeof v === 'bigint');
+          if (allNums) {
+            return String(values.reduce<number>((a, b) => Number(a) + Number(b), 0));
+          }
+          return `[${values.join(', ')}]`;
+        }}
+      />
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <UniverSheet onReady={(u) => { univerRef.current = u; }} />
       </div>
