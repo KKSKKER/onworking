@@ -33,9 +33,8 @@ parentPort!.on('message', (msg: WorkerMessage) => {
 
       case 'exec': {
         if (!db) { send(msg.id, undefined, 'DB not open'); break; }
-        const stmt = db.prepare(msg.sql!);
-        const result = msg.params ? stmt.all(...msg.params) : stmt.all();
-        send(msg.id, result);
+        db.exec(msg.sql!);
+        send(msg.id, { ok: true });
         break;
       }
 
