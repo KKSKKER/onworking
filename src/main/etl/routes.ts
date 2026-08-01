@@ -292,7 +292,7 @@ function applyTransforms(rawValue: string, transforms: MergeFieldTransform[]): s
   for (const t of sorted) {
     switch (t.kind) {
       case 'coerce_string': {
-        let s = String(current ?? '');
+        let s: string = String(current ?? '');
         if (t.trim) s = s.trim();
         if (t.lowercase) s = s.toLowerCase();
         if (t.uppercase) s = s.toUpperCase();
@@ -339,7 +339,7 @@ function applyTransforms(rawValue: string, transforms: MergeFieldTransform[]): s
         break;
       }
       case 'coerce_enum': {
-        const s = String(current ?? '');
+        const s: string = String(current ?? '');
         if (t.mapping?.[s]) { current = t.mapping[s]; }
         else if (t.unmappedStrategy === 'null') { current = null; }
         else if (t.unmappedStrategy === 'error') {
