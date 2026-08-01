@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
+import * as fs from 'node:fs';
 import path from 'path';
 import { APIRouter, apiRouter } from './api/router';
 import { DBConnection } from './db/connection';
@@ -33,9 +34,9 @@ function setupIPC(router: APIRouter): void {
 function initModules(ws: WorkspaceInfo): void {
   // Close previous DB if reopening
   if (db) { db.close(); }
+  // Ensure the db directory exists before opening
+  fs.mkdirSync(path.dirname(ws.dbPath), { recursive: true });
   db = new DBConnection(ws.dbPath);
-  // Force physical creation of the DB file
-  db.exec('CREATE TABLE IF NOT EXISTS _workspace_meta (key TEXT PRIMARY KEY, value TEXT)').catch(() => {});
   registerDBRoutes(apiRouter, db);
   registerEntityRoutes(apiRouter, db);
   loadEntitiesFromDir(ws.entitiesDir);
