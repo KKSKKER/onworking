@@ -28,20 +28,9 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath }) => {
       file: filePath, sheetIndex: 0, headerRow, maxRows: 100,
     });
     if (res.success) {
-      let snap = res.data as PreviewSnapshot;
-      // Apply BigTable field mapping: rename columns to mapped field names
-      if (config && config.fields.length > 0) {
-        const mapping = new Map<string, string>();
-        for (const f of config.fields) {
-          if (f.included && f.mappedField) mapping.set(f.sourceHeader, f.mappedField);
-        }
-        if (mapping.size > 0) {
-          const newHeaders = snap.headers.map(h => mapping.get(h) || h);
-          snap = { ...snap, headers: newHeaders };
-        }
-      }
-      setSnapshot(snap);
-      setStatus(`已加载: ${snap.totalRows} 行, ${snap.totalColumns} 列 (表头行: ${headerRow})`);
+      const s = res.data as PreviewSnapshot;
+      setSnapshot(s);
+      setStatus(`已加载: ${s.totalRows} 行, ${s.totalColumns} 列 (表头行: ${headerRow})`);
     } else {
       setStatus(`错误: ${res.error}`);
     }
@@ -54,6 +43,18 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath }) => {
     previewTimer.current = setTimeout(() => loadPreview(), 300);
     return () => { if (previewTimer.current) clearTimeout(previewTimer.current); };
   }, [filePath, headerRow, loadPreview]);
+
+  // Build field mapping at render time — always reflects latest config state
+  const fieldMap = new Map<string, string>();
+  if (config?.fields) {
+    for (const f of config.fields) {
+      if (f.included && f.mappedField) fieldMap.set(f.sourceHeader, f.mappedField);
+    }
+  }
+  // Show only mapped columns if mapping exists; otherwise show all
+  const effectiveColumns = fieldMap.size > 0
+    ? (snapshot?.headers.map((h, i) => ({ header: fieldMap.get(h) || h, idx: i })).filter(c => fieldMap.has(snapshot!.headers[c.idx])) ?? [])
+    : (snapshot?.headers.map((h, i) => ({ header: h, idx: i })) ?? []);
 
   const previewRows = snapshot ? snapshot.rows.slice(0, 50) : [];
 
@@ -72,19 +73,22 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
             <thead>
               <tr style={{ background: '#e8f0fe', position: 'sticky', top: 0 }}>
-                {snapshot.headers.map((h, i) => (
-                  <th key={i} style={{ padding: '4px 8px', border: '1px solid #ccc', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                {effectiveColumns.map((c, i) => (
+                  <th key={i} style={{ padding: '4px 8px', border: '1px solid #ccc', textAlign: 'left', whiteSpace: 'nowrap' }}>{c.header}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {previewRows.map((row, ri) => (
                 <tr key={ri} style={{ background: ri + 1 === headerRow ? '#fffde7' : 'white' }}>
-                  {row.map((cell, ci) => (
-                    <td key={ci} style={{ padding: '2px 8px', border: '1px solid #eee', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {cell?.v !== null && cell?.v !== undefined ? String(cell.v) : ''}
-                    </td>
-                  ))}
+                  {effectiveColumns.map((c, ci) => {
+                    const cell = row[c.idx];
+                    return (
+                      <td key={ci} style={{ padding: '2px 8px', border: '1px solid #eee', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {cell?.v !== null && cell?.v !== undefined ? String(cell.v) : ''}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
