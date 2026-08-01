@@ -97,6 +97,44 @@ export function registerETLRoutes(
     return { rows, total, limit: l, offset: o };
   }, { description: 'Get paginated data from an ETL table' });
 
+  router.register('etl.buildMasterTable', async () => {
+    const rootDir = workspace.root;
+    if (!fs.existsSync(rootDir)) throw new Error('Workspace root not found');
+
+    // Scan for BigTable folders (dirs containing settings.json and .onworking/db/onworking.db)
+    const bigTableFolders: string[] = [];
+    for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'source') continue;
+      const settingsPath = path.join(rootDir, entry.name, 'settings.json');
+      const dbPath = path.join(rootDir, entry.name, '.onworking', 'db', 'onworking.db');
+      if (fs.existsSync(settingsPath) && fs.existsSync(dbPath)) {
+        bigTableFolders.push(entry.name);
+      }
+    }
+
+    const synced: string[] = [];
+    for (const folderName of bigTableFolders) {
+      const folderDbPath = path.join(rootDir, folderName, '.onworking', 'db', 'onworking.db');
+      const escapedPath = folderDbPath.replace(/\\/g, '/').replace(/'/g, "''");
+      try {
+        // ATTACH folder DB and copy all its tables to workspace DB
+        await db.exec(`ATTACH DATABASE '${escapedPath}' AS __bt`);
+        const rows = await db.execute("SELECT name FROM __bt.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_%'");
+        for (const row of rows as { name: string }[]) {
+          const tName = row.name;
+          await db.exec(`DROP TABLE IF EXISTS "${tName}"`);
+          await db.exec(`CREATE TABLE "${tName}" AS SELECT * FROM __bt."${tName}"`);
+          synced.push(tName);
+        }
+        await db.exec('DETACH DATABASE __bt');
+      } catch (e) {
+        console.error(`Failed to sync folder ${folderName}:`, e);
+      }
+    }
+
+    return { syncedTables: synced, folderCount: bigTableFolders.length };
+  }, { description: 'Build master table in workspace DB from all BigTable folder DBs' });
+
   router.register('etl.mergeFolder', async (params) => {
     const { folderPath } = params as { folderPath: string };
     const fs = await import('node:fs');

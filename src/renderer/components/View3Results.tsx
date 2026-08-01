@@ -68,6 +68,8 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
     URL.revokeObjectURL(url);
   };
 
+  const [buildingMaster, setBuildingMaster] = useState(false);
+
   const doMerge = async () => {
     if (!mergeFolder) return;
     setMerging(true);
@@ -75,7 +77,6 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
     const res = await window.onworking.api.call('etl.mergeFolder', { folderPath });
     if (res.success) {
       setMergeResult(res.data as Record<string, unknown>);
-      // Reload tables
       const dbRes = await window.onworking.api.call('db.getTables');
       if (dbRes.success) {
         const allTables = (dbRes.data as string[]).filter(t => t !== '_lineage' && !t.startsWith('sqlite_'));
@@ -84,6 +85,22 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
       }
     }
     setMerging(false);
+  };
+
+  const buildMaster = async () => {
+    setBuildingMaster(true);
+    const res = await window.onworking.api.call('etl.buildMasterTable');
+    if (res.success) {
+      const result = res.data as { syncedTables: string[]; folderCount: number };
+      setMergeResult(result as unknown as Record<string, unknown>);
+      const dbRes = await window.onworking.api.call('db.getTables');
+      if (dbRes.success) {
+        const allTables = (dbRes.data as string[]).filter(t => t !== '_lineage' && !t.startsWith('sqlite_'));
+        setTables(allTables);
+        if (allTables.length > 0) setSelectedTable(allTables[0]);
+      }
+    }
+    setBuildingMaster(false);
   };
 
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -99,6 +116,10 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
         <button onClick={doMerge} disabled={merging || !mergeFolder}
           style={{ padding: '2px 12px', background: '#28a745', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
           {merging ? '合并中...' : '合并生成'}
+        </button>
+        <button onClick={buildMaster} disabled={buildingMaster}
+          style={{ padding: '2px 12px', background: '#007acc', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
+          {buildingMaster ? '构建中...' : '生成总表'}
         </button>
         {mergeResult && <span style={{ fontSize: 11 }}>导入 {(mergeResult as Record<string, unknown>).rowsInserted as number} 行</span>}
         <span style={{ width: 1, height: 16, background: '#ddd' }} />
