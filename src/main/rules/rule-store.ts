@@ -47,9 +47,11 @@ export class RuleStore {
   }
 
   delete(name: string): void {
-    const filePath = path.join(this.rulesDir, `${name}.yaml`);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    for (const ext of ['.yaml', '.yml']) {
+      const filePath = path.join(this.rulesDir, `${name}${ext}`);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
   }
 

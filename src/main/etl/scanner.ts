@@ -7,6 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import type { RuleDefinition, ResolvedFile } from '../../common/types/etl-types';
+import { matchGlob } from '../../common/utils/glob';
 
 export function scanWorkspace(sourceDir: string, rules: RuleDefinition[]): ResolvedFile[] {
   const results: ResolvedFile[] = [];
@@ -59,11 +60,3 @@ function walkDir(dir: string): string[] {
   return results;
 }
 
-function matchGlob(filePath: string, pattern: string): boolean {
-  let regexStr = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*/g, '<<<GLOBSTAR>>>')
-    .replace(/\*/g, '[^/]*')
-    .replace(/<<<GLOBSTAR>>>/g, '.*');
-  return new RegExp(`^${regexStr}$`, 'i').test(filePath);
-}

@@ -17,8 +17,13 @@ export const App: React.FC = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setPlatform(window.onworking.platform);
-    window.onworking.api.call('api:list').then(res => {
+    const api = window.onworking;
+    if (!api) {
+      setError('Preload 未加载 — 请确认 contextBridge 正常工作');
+      return;
+    }
+    setPlatform(api.platform);
+    api.api.call('api:list').then(res => {
       if (res.success) setCommands(res.data as string[]);
       else setError(res.error ?? 'IPC 调用失败');
     });

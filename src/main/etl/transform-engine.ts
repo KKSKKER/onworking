@@ -26,12 +26,12 @@ function applyFieldTransforms(
   rawValue: CellData | null,
   transforms: FieldTransform[],
   _row: Record<string, CellData>,
-): { value: string | bigint | number | null; type: TypedCell['type'] } {
+): { value: string | bigint | null; type: TypedCell['type'] } {
   if (!rawValue || rawValue.raw === undefined) {
     return { value: null, type: 'null' };
   }
 
-  let current: string | bigint | number | null = rawValue.raw ?? '';
+  let current: string | bigint | null = rawValue.raw ?? '';
   let currentType: TypedCell['type'] = 'string';
 
   const sorted = sortTransforms(transforms);
@@ -52,8 +52,12 @@ function applyFieldTransforms(
       case 'coerce_number': {
         let s = String(current ?? '').trim();
         if (s === '' || s === '-') {
-          current = t.emptyAs === '0' ? (t.outputType === 'cents' ? 0n : 0) : null;
-          currentType = current === null ? 'null' : (t.outputType === 'cents' ? 'cents' : 'number');
+          if (t.outputType === 'cents') {
+            current = t.emptyAs === '0' ? 0n : null;
+          } else {
+            current = t.emptyAs === '0' ? '0' : null;
+          }
+          currentType = current === null ? 'null' : t.outputType;
           break;
         }
         let sign = 1n;
@@ -70,14 +74,21 @@ function applyFieldTransforms(
         if (t.thousandsSeparator) s = s.replaceAll(t.thousandsSeparator, '');
         if (t.decimalSeparator && t.decimalSeparator !== '.') s = s.replace(t.decimalSeparator, '.');
 
-        const num = parseFloat(s);
-        if (isNaN(num)) { current = null; currentType = 'null'; break; }
-
+        // String-based parsing: never use parseFloat (IEEE 754 precision loss)
         if (t.outputType === 'cents') {
-          current = BigInt(Math.round(num * 100)) * sign;
+          const dotIdx = s.indexOf('.');
+          if (dotIdx === -1) {
+            current = BigInt(s) * 100n * sign;
+          } else {
+            const intPart = s.slice(0, dotIdx) || '0';
+            let fracPart = s.slice(dotIdx + 1);
+            fracPart = fracPart.slice(0, 2).padEnd(2, '0'); // exactly 2 decimal digits
+            current = (BigInt(intPart) * 100n + BigInt(fracPart)) * sign;
+          }
           currentType = 'cents';
         } else {
-          current = Number(num) * Number(sign);
+          // Store as string to avoid float; sign applied to string representation
+          current = sign === -1n ? '-' + s : s;
           currentType = 'number';
         }
         break;
@@ -94,7 +105,9 @@ function applyFieldTransforms(
         const mapped: string | undefined = t.mapping[s];
         if (mapped) { current = mapped; currentType = 'string'; }
         else if (t.unmappedStrategy === 'null') { current = null; currentType = 'null'; }
-        else if (t.unmappedStrategy === 'error') { current = null; currentType = 'null'; }
+        else if (t.unmappedStrategy === 'error') {
+          throw new Error(`Enum value "${s}" not found in mapping and unmappedStrategy is "error"`);
+        }
         break;
       }
 
@@ -114,9 +127,8 @@ function applyFieldTransforms(
       case 'split_to_columns':
       case 'extract':
       case 'split_by_sign':
-      case 'derive':
-      case 'filter_rows': {
-        break;
+      case 'derive': {
+        throw new Error(`Transform kind "${t.kind}" is not yet implemented (Phase 2)`);
       }
     }
   }

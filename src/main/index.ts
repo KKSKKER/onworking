@@ -4,11 +4,21 @@ import { apiRouter } from './api/router';
 
 let mainWindow: BrowserWindow | null = null;
 
+/** JSON replacer: convert BigInt to string for IPC serialization */
+function serializeBigInt(_key: string, value: unknown): unknown {
+  if (typeof value === 'bigint') {
+    return `__BIGINT__${value.toString()}__`;
+  }
+  return value;
+}
+
 function setupIPC(): void {
   ipcMain.handle('api:call', async (_event, command: string, params?: Record<string, unknown>) => {
     try {
       const result = await apiRouter.call(command, params);
-      return { success: true, data: result };
+      // BigInt not JSON-serializable → serialize via replacer before IPC
+      const serialized = JSON.parse(JSON.stringify({ data: result }, serializeBigInt));
+      return { success: true, data: serialized.data };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }

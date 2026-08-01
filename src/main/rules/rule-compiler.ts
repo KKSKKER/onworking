@@ -6,6 +6,7 @@
 import type { RuleDefinition, ResolvedFile } from '../../common/types/etl-types';
 import type { ParseConfig } from '../../common/types/parse-config';
 import { defaultParseConfig } from '../../common/types/parse-config';
+import { matchGlob } from '../../common/utils/glob';
 
 export function ruleToParseConfigs(rule: RuleDefinition, resolvedFiles: ResolvedFile[]): ParseConfig[] {
   const configs: ParseConfig[] = [];
@@ -36,12 +37,3 @@ function findMatchingSource(
   return sources.find(s => matchGlob(filePath, s.pattern));
 }
 
-function matchGlob(filePath: string, pattern: string): boolean {
-  let regexStr = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*/g, '<<<GLOBSTAR>>>')
-    .replace(/\*/g, '[^/]*')
-    .replace(/<<<GLOBSTAR>>>/g, '.*');
-
-  return new RegExp(`^${regexStr}$`, 'i').test(filePath);
-}

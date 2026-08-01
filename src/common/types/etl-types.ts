@@ -29,7 +29,7 @@ export interface ParsedChunk {
 // --- Transform 引擎输出 (§4.3) ---
 
 export interface TypedCell {
-  value: string | bigint | number | null;
+  value: string | bigint | null;
   type: 'string' | 'cents' | 'number' | 'date' | 'boolean' | 'null';
   derived: boolean;
   derivedBy?: string;
