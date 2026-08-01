@@ -207,13 +207,15 @@ export function registerETLRoutes(
       }
     }
 
-    // 6. Pipeline against the folder DB (sourceDir = folderPath/source)
-    const { ETLPipeline, registerParser } = await import('./pipeline');
+    // 6. Parse each file and insert directly into the BigTable target table
     const { ExcelParser } = await import('../plugins/onw-excel/parser');
-    registerParser(new ExcelParser());
-    const pipeline = new ETLPipeline(sourceDir, folderDb, folderPath);
+    const parserInst = new ExcelParser();
+    const { defaultParseConfig } = await import('../../common/types/parse-config');
+    const { TransformEngine } = await import('./transform-engine');
+    const transformEngine = new TransformEngine();
 
     let totalRows = 0;
+    let rowIdx = 0;
     const fileStats: { file: string; rows: number; error?: string }[] = [];
 
     for (const file of files) {
@@ -228,16 +230,49 @@ export function registerETLRoutes(
         continue;
       }
       try {
-        // Scope the rule to this single file and to the BigTable table name so the
-        // pipeline inserts only this file's rows into the pre-created target table.
-        const singleFileRule: RuleDefinition = {
-          ...rule,
-          name: tableName,
-          sources: rule.sources.map(s => ({ ...s, pattern: `**/${fileName}` })),
-        };
-        const result = await pipeline.execute(singleFileRule);
-        totalRows += result.rowsInserted;
-        fileStats.push({ file: fileName, rows: result.rowsInserted });
+        // Build source → BigTable field mapping: sourceHeader → outputName (BigTable field)
+        const sourceToTarget: { sourceHeader: string; targetCol: string }[] = [];
+        for (const f of rule.fields) {
+          if (f.included && f.outputName) {
+            sourceToTarget.push({
+              sourceHeader: f.sourceHeader || f.outputName,
+              targetCol: f.outputName,
+            });
+          }
+        }
+
+        // Parse the file
+        const hr = rule.sources[0]?.headerRow ?? 1;
+        const cfg = defaultParseConfig(file, rule.sources[0]?.sheetIndex ?? 0, hr);
+        const chunks = parserInst.parse(file, cfg);
+
+        // Build INSERT statement with mapped columns
+        const targetCols = sourceToTarget.map(m => m.targetCol);
+        const allCols = [...targetCols, '__source_file', '__source_row', '__extracted_at'];
+        const allPlaceholders = allCols.map(() => '?').join(', ');
+        const insertSQL = `INSERT INTO "${tableName}" (${allCols.map(c => `"${c}"`).join(', ')}) VALUES (${allPlaceholders})`;
+
+        const extractedAt = new Date().toISOString();
+        let fileRows = 0;
+
+        for (const chunk of chunks) {
+          // Apply transforms (type coercion, fill down, etc.)
+          const transformed = transformEngine.apply(chunk, rule);
+          for (const row of transformed.rows) {
+            const values: (string | number | bigint | null)[] = [];
+            for (const m of sourceToTarget) {
+              // After transform, row keys are still sourceHeader (transform engine doesn't rename)
+              const cell = row[m.sourceHeader];
+              values.push(cell?.value ?? null);
+            }
+            values.push(file, rowIdx++, extractedAt);
+            await folderDb.run(insertSQL, values);
+            fileRows++;
+          }
+        }
+
+        totalRows += fileRows;
+        fileStats.push({ file: fileName, rows: fileRows });
       } catch (e) {
         fileStats.push({ file: fileName, rows: 0, error: (e as Error).message });
       }
