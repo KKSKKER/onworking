@@ -121,13 +121,13 @@ export function registerETLRoutes(
     const folderRuleStore = new RuleStore(rulesDir);
     const allRules = folderRuleStore.listAll();
 
-    // Also create folder DB for standalone access, and use workspace DB for View3
+    // Create folder DB and run ETL pipeline into it
     const { DBConnection } = await import('../db/connection');
     const folderDb = new DBConnection(folderDbPath);
     const { ETLPipeline, registerParser } = await import('./pipeline');
     const { ExcelParser } = await import('../plugins/onw-excel/parser');
     registerParser(new ExcelParser());
-    const pipeline = new ETLPipeline(sourceDir, db, folderPath); // Use workspace db for View3 access
+    const folderPipeline = new ETLPipeline(sourceDir, folderDb, folderPath);
 
     let totalRows = 0;
     let mergedTableName = '';
@@ -145,7 +145,7 @@ export function registerETLRoutes(
         continue;
       }
       try {
-        const result = await pipeline.execute(rule);
+        const result = await folderPipeline.execute(rule);
         totalRows += result.rowsInserted;
         if (!mergedTableName) mergedTableName = result.tableName;
         fileStats.push({ file: fileName, rows: result.rowsInserted });
@@ -154,9 +154,22 @@ export function registerETLRoutes(
       }
     }
 
+    // Sync folder table into workspace DB (ATTACH folder DB → copy table → DETACH)
+    if (mergedTableName && totalRows > 0) {
+      try {
+        const escapedFolderPath = folderDbPath.replace(/\\/g, '/').replace(/'/g, "''");
+        await db.exec(`ATTACH DATABASE '${escapedFolderPath}' AS __folder_sync`);
+        await db.exec(`DROP TABLE IF EXISTS "${mergedTableName}"`);
+        await db.exec(`CREATE TABLE "${mergedTableName}" AS SELECT * FROM __folder_sync."${mergedTableName}"`);
+        await db.exec('DETACH DATABASE __folder_sync');
+      } catch (e) {
+        console.error('Failed to sync folder table to workspace DB:', e);
+      }
+    }
+
     folderDb.close();
-    return { tableName: mergedTableName || pathMod.basename(folderPath), rowsInserted: totalRows, fileStats };
-  }, { description: 'Extract all source files in a folder into a single DB table' });
+    return { tableName: mergedTableName || pathMod.basename(folderPath), rowsInserted: totalRows, fileStats, folderDbPath };
+  }, { description: 'Extract all source files in a folder into folder DB, then sync to workspace DB' });
 
 // Helper: simple glob match for rule patterns
 function matchGlobForRule(fileName: string, pattern: string): boolean {

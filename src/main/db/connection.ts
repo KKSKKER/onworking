@@ -24,8 +24,12 @@ export class DBConnection {
   private worker: Worker;
   private requestId = 0;
   private pending = new Map<number, PendingRequest>();
+  private _dbPath: string;
+
+  get dbPath(): string { return this._dbPath; }
 
   constructor(dbPath: string) {
+    this._dbPath = dbPath;
     // worker.ts is in the same directory as connection.ts
     this.worker = new Worker(path.join(__dirname, 'worker.js'));
 
