@@ -27,11 +27,11 @@ function applyFieldTransforms(
   transforms: FieldTransform[],
   _row: Record<string, CellData>,
 ): { value: string | bigint | number | null; type: TypedCell['type'] } {
-  if (!rawValue || rawValue.raw === '' || rawValue.raw === undefined) {
+  if (!rawValue || rawValue.raw === undefined) {
     return { value: null, type: 'null' };
   }
 
-  let current: string | bigint | number | null = rawValue.raw;
+  let current: string | bigint | number | null = rawValue.raw ?? '';
   let currentType: TypedCell['type'] = 'string';
 
   const sorted = sortTransforms(transforms);
