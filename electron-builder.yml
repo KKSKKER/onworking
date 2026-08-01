@@ -1,0 +1,13 @@
+appId: com.onworking.app
+productName: OnWorking
+directories:
+  output: release
+files:
+  - dist/**/*
+  - package.json
+win:
+  target: nsis
+mac:
+  target: dmg
+linux:
+  target: AppImage
