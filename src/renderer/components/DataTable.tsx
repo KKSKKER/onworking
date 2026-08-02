@@ -36,13 +36,13 @@ export const DataTable: React.FC<DataTableProps> = ({ columns, rows }) => {
   }
 
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+    <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed' }}>
       <thead>
         <tr>
           {columns.map(c => (
             <th key={c} style={{ border: '1px solid #e5e5e5', padding: 0, textAlign: 'left',
               background: '#fafafa', position: 'sticky', top: 0, fontWeight: 600,
-              whiteSpace: 'nowrap', width: widths[c] }}>
+              whiteSpace: 'nowrap', width: widths[c] ?? 160 }}>
               <div style={{ position: 'relative', padding: '4px 12px 4px 8px', minHeight: 20 }}>
                 {c}
                 <div onMouseDown={e => startResize(c, e)}
