@@ -7,8 +7,15 @@ interface DataTableProps {
   rows: Record<string, unknown>[];
 }
 
+// 模块级列宽存储:跨 DataTable 卸载/重挂保留列宽(View3 加载时会卸载重挂,防止调好的宽度被重置)
+const widthStore: Record<string, number> = {};
+
 export const DataTable: React.FC<DataTableProps> = ({ columns, rows }) => {
-  const [widths, setWidths] = useState<Record<string, number>>({});
+  const [widths, setWidths] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    for (const c of columns) init[c] = widthStore[c] ?? 160;
+    return init;
+  });
   const dragRef = useRef<{ col: string; startX: number; startW: number } | null>(null);
 
   const startResize = (col: string, e: React.MouseEvent): void => {
@@ -20,7 +27,11 @@ export const DataTable: React.FC<DataTableProps> = ({ columns, rows }) => {
       const d = dragRef.current;
       if (!d) return;
       const next = Math.max(40, d.startW + (ev.clientX - d.startX));
-      setWidths(w => (w[d.col] === next ? w : { ...w, [d.col]: next }));
+      setWidths(w => {
+        if (w[d.col] === next) return w;
+        widthStore[d.col] = next;
+        return { ...w, [d.col]: next };
+      });
     };
     const onUp = (): void => {
       dragRef.current = null;
@@ -35,8 +46,11 @@ export const DataTable: React.FC<DataTableProps> = ({ columns, rows }) => {
     return <div style={{ color: '#999', padding: 20, textAlign: 'center' }}>暂无数据</div>;
   }
 
+  // 表格宽度显式 = 各列宽度之和:拖一列只改这一列,其他列不被重新分配
+  const totalWidth = columns.reduce((s, c) => s + (widths[c] ?? 160), 0);
+
   return (
-    <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+    <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: totalWidth }}>
       <thead>
         <tr>
           {columns.map(c => (
