@@ -42,7 +42,7 @@ export function registerRuleRoutes(router: APIRouter, rulesDir: string): void {
   }, { description: 'Delete a rule' });
 
   router.register('rule.autoGenerate', async (params) => {
-    const { file, headerRow, save, rulesDir: rd } = params as { file: string; headerRow?: number; save?: boolean; rulesDir?: string };
+    const { file, sheetIndex, headerRow, save, rulesDir: rd } = params as { file: string; sheetIndex?: number; headerRow?: number; save?: boolean; rulesDir?: string };
     if (!file) throw new Error('rule.autoGenerate requires a "file" parameter');
 
     const parser = new ExcelParser();
@@ -51,10 +51,10 @@ export function registerRuleRoutes(router: APIRouter, rulesDir: string): void {
 
     if (structure.sheets.length === 0) throw new Error('No sheets found');
 
-    const sheetIndex = 0;
+    const si = sheetIndex ?? 0;
     const hr = headerRow ?? 1;
     const shouldSave = save !== false;
-    const config = defaultParseConfig(file, sheetIndex, hr);
+    const config = defaultParseConfig(file, si, hr);
     const chunks = parser.parse(file, config);
 
     const allRows = chunks.flatMap(c => c.rows).slice(0, 50);
@@ -90,7 +90,7 @@ export function registerRuleRoutes(router: APIRouter, rulesDir: string): void {
       };
     });
 
-    const rule = autoGenerateRule(file, fileName, structure.sheets, sheetIndex, hr, profiles);
+    const rule = autoGenerateRule(file, fileName, structure.sheets, si, hr, profiles);
     const s = getStore(rd);
     if (shouldSave) s.save(rule);
 

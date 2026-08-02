@@ -32,6 +32,13 @@ export function registerETLRoutes(
     return excelToUniverSnapshot(chunks, sheetName);
   }, { description: 'Preview Excel file as Univer snapshot' });
 
+  router.register('etl.scanSheets', async (params) => {
+    const { file } = params as { file: string };
+    const parser = new ExcelParser();
+    const structure = parser.scan(file);
+    return structure.sheets;
+  }, { description: 'List sheets of an Excel file' });
+
   router.register('etl.scan', async () => {
     const sourceDir = workspace.sourceDir;
     const root = workspace.root;
