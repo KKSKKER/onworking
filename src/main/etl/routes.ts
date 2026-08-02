@@ -175,6 +175,7 @@ export function registerETLRoutes(
     const allCols = [...columnNames, '__source_file', '__source_row', '__extracted_at'];
     const insertSQL = `INSERT INTO "${tableName}" (${allCols.map(c => `"${c}"`).join(', ')}) VALUES (${allCols.map(() => '?').join(', ')})`;
     const extractedAt = new Date().toISOString();
+    const matchedFiles = new Set<string>();
 
     for (const rule of allRules) {
       const src = rule.sources[0];
@@ -192,6 +193,7 @@ export function registerETLRoutes(
         fileStats.push({ file: rule.name, rows: 0, error: 'No matching file' });
         continue;
       }
+      matchedFiles.add(file);
       const fileName = pathMod.basename(file);
 
       try {
@@ -243,6 +245,12 @@ export function registerETLRoutes(
       } catch (e) {
         fileStats.push({ file: `${fileName} [${src.sheetName ?? 'sheet'}]`, rows: 0, error: (e as Error).message });
       }
+    }
+
+    // 无规则覆盖的源文件给出提示(多 sheet 模型:只有保存过规则的 sheet 才会被合并)
+    for (const f of files) {
+      if (matchedFiles.has(f)) continue;
+      fileStats.push({ file: pathMod.basename(f), rows: 0, error: '无规则,已跳过' });
     }
 
     // 7. Sync table to workspace DB so View3 can preview/export

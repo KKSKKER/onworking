@@ -105,6 +105,9 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
   };
 
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+  const mergeData = mergeResult as Record<string, unknown> | undefined;
+  const mergeStats = (mergeData?.fileStats ?? []) as { file: string; rows: number; error?: string }[];
+  const noRuleFiles = mergeStats.filter(s => s.error === '无规则,已跳过');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontSize: 12 }}>
@@ -122,7 +125,16 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
           style={{ padding: '2px 12px', background: '#007acc', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
           {buildingMaster ? '构建中...' : '生成总表'}
         </button>
-        {mergeResult && <span style={{ fontSize: 11 }}>导入 {(mergeResult as Record<string, unknown>).rowsInserted as number} 行</span>}
+        {mergeResult && (
+          <>
+            <span style={{ fontSize: 11 }}>导入 {mergeData?.rowsInserted as number} 行</span>
+            {noRuleFiles.length > 0 && (
+              <span style={{ fontSize: 11, color: '#b00' }} title={noRuleFiles.map(s => s.file).join('\n')}>
+                · {noRuleFiles.length} 个无规则文件已跳过
+              </span>
+            )}
+          </>
+        )}
         <span style={{ width: 1, height: 16, background: '#ddd' }} />
         <span>合并数据表:</span>
         <select value={selectedTable} onChange={e => setSelectedTable(e.target.value)} style={{ padding: '2px 4px', width: 180 }}>
