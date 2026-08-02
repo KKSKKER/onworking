@@ -43,7 +43,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
       <div style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ color: '#666' }}>工作表 (共 {sheetConfigs.length} 张):</span>
         <select value={selectedSheetIndex} onChange={e => selectSheet(Number(e.target.value))}
-          title="切换工作表" style={{ padding: '2px 6px', fontSize: 12, maxWidth: 180 }}>
+          title="切换工作表" style={{ padding: '2px 6px', fontSize: 12, width: 180 }}>
           {sheetConfigs.map((sc, i) => (
             <option key={sc.sheetIndex} value={i}>{sc.sheetName}</option>
           ))}

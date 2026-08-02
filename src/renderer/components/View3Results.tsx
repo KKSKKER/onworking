@@ -109,7 +109,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontSize: 12 }}>
       <div style={{ padding: '4px 12px', borderBottom: '1px solid #ddd', display: 'flex', gap: 12, alignItems: 'center' }}>
         <span>大表文件夹:</span>
-        <select value={mergeFolder} onChange={e => setMergeFolder(e.target.value)} style={{ padding: '2px 4px' }}>
+        <select value={mergeFolder} onChange={e => setMergeFolder(e.target.value)} style={{ padding: '2px 4px', width: 180 }}>
           <option value="">选择...</option>
           {folders.map(f => <option key={f} value={f}>{f}</option>)}
         </select>
@@ -124,7 +124,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
         {mergeResult && <span style={{ fontSize: 11 }}>导入 {(mergeResult as Record<string, unknown>).rowsInserted as number} 行</span>}
         <span style={{ width: 1, height: 16, background: '#ddd' }} />
         <span>合并数据表:</span>
-        <select value={selectedTable} onChange={e => setSelectedTable(e.target.value)} style={{ padding: '2px 4px' }}>
+        <select value={selectedTable} onChange={e => setSelectedTable(e.target.value)} style={{ padding: '2px 4px', width: 180 }}>
           {tables.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <span style={{ color: '#666' }}>共 {total} 行</span>
