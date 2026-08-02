@@ -92,6 +92,12 @@ export class TableConfig {
     if (this.fields[i]) { this.fields[i].mappedField = field; this.saved = false; this.onChange(); }
   }
 
+  setAllIncluded(checked: boolean): void {
+    this.fields.forEach(f => { f.included = checked; });
+    this.saved = false;
+    this.onChange();
+  }
+
   /** 加载已保存的规则(若存在);sheet 0 兼容旧版单 sheet 规则 */
   async load(): Promise<void> {
     const res = await window.onworking.api.call('rule.get', { name: this.ruleName, rulesDir: this.rulesDir || undefined });

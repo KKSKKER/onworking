@@ -71,7 +71,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({ onSelectFile, selectedFi
                 {expanded && bt && (
                   <ul style={{ listStyle: 'none', padding: '0 0 0 20px', margin: 0 }}>
                     {bt.sourceFiles.map(f => (
-                      <li key={f} onClick={(e) => { e.stopPropagation(); onSelectFile(f); }}
+                      <li key={f} onClick={(e) => { e.stopPropagation(); selectFolder(name); onSelectFile(f); }}
                         style={{ padding: '2px 8px', cursor: 'pointer', fontSize: 11,
                           background: f === selectedFile ? '#e6f0ff' : 'transparent' }}>
                         📄 {f.replace(/^.*[\\/]/, '')}

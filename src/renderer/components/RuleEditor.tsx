@@ -42,16 +42,12 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
     <div style={{ fontSize: 12, padding: 8 }}>
       <div style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ color: '#666' }}>工作表 (共 {sheetConfigs.length} 张):</span>
-        {sheetConfigs.map((sc, i) => (
-          <button key={sc.sheetIndex} onClick={() => selectSheet(i)}
-            title={sc.sheetName}
-            style={{ padding: '3px 10px', border: 'none', cursor: 'pointer', borderRadius: 3, fontSize: 12,
-              background: i === selectedSheetIndex ? '#007acc' : '#eee',
-              color: i === selectedSheetIndex ? 'white' : '#333' }}>
-            {sc.sheetName}
-          </button>
-        ))}
-        <span style={{ color: '#999' }}>当前: {config.sheetName}</span>
+        <select value={selectedSheetIndex} onChange={e => selectSheet(Number(e.target.value))}
+          title="切换工作表" style={{ padding: '2px 6px', fontSize: 12, maxWidth: 180 }}>
+          {sheetConfigs.map((sc, i) => (
+            <option key={sc.sheetIndex} value={i}>{sc.sheetName}</option>
+          ))}
+        </select>
         <span style={{ marginLeft: 8 }}>表头行: <input type="number" value={headerRow}
           onChange={e => config.setHeaderRow(Number(e.target.value))}
           style={{ width: 50, padding: '2px 4px' }} /></span>
@@ -75,7 +71,11 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f5f5f5', textAlign: 'left' }}>
-                <th style={{ padding: 4, width: 36 }}>☑</th>
+                <th style={{ padding: 4, width: 36 }} title="全选/取消全选">
+                  <input type="checkbox"
+                    checked={fields.length > 0 && fields.every(f => f.included)}
+                    onChange={e => config.setAllIncluded(e.target.checked)} />
+                </th>
                 <th style={{ padding: 4 }}>字段名</th>
                 <th style={{ padding: 4 }}>映射字段</th>
               </tr>
