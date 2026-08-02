@@ -3,6 +3,7 @@
 // 表浏览器 + SQL 编辑器 + 结果网格
 import React, { useEffect, useState } from 'react';
 import { DataTable } from './DataTable';
+import { ResizableSidebar } from './ResizableSidebar';
 
 interface ColumnInfo {
   cid: number;
@@ -104,7 +105,7 @@ export const View4Sql: React.FC = () => {
   return (
     <div style={{ display: 'flex', height: '100%', fontSize: 12 }}>
       {/* 左:表浏览器 */}
-      <div style={{ width: 220, borderRight: '1px solid #eee', overflow: 'auto', padding: 8, boxSizing: 'border-box' }}>
+      <ResizableSidebar initialWidth={220} minWidth={160} contentStyle={{ padding: 8, borderRight: '1px solid #eee' }}>
         <div style={{ fontWeight: 600, marginBottom: 8 }}>🗂 表</div>
         {tables.length === 0 && <div style={{ color: '#999' }}>暂无表</div>}
         {tables.map(t => (
@@ -125,7 +126,7 @@ export const View4Sql: React.FC = () => {
             ))}
           </div>
         )}
-      </div>
+      </ResizableSidebar>
 
       {/* 右:编辑器 + 结果 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>

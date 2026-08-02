@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FolderTree } from './FolderTree';
 import { RuleEditor } from './RuleEditor';
 import { BigTableSettings } from './BigTableSettings';
+import { ResizableSidebar } from './ResizableSidebar';
 import { useTableConfigStore } from '../state/TableConfigStore';
 
 interface View1ConfigProps {
@@ -14,9 +15,9 @@ export const View1Config: React.FC<View1ConfigProps> = ({ onPreview }) => {
 
   return (
     <div style={{ display: 'flex', height: '100%' }}>
-      <div style={{ width: '30%', minWidth: 220, borderRight: '1px solid #ddd', overflow: 'auto', padding: 8 }}>
+      <ResizableSidebar initialWidth={380} minWidth={220} contentStyle={{ padding: 8, borderRight: '1px solid #ddd' }}>
         <FolderTree selectedFile={selectedFile} onSelectFile={f => { selectFile(f).catch(console.error); }} onOpenSettings={setSettingsFolder} />
-      </div>
+      </ResizableSidebar>
       <div style={{ flex: 1, overflow: 'auto' }}>
         {settingsFolder ? (
           <BigTableSettings folderName={settingsFolder} onClose={() => setSettingsFolder('')} />
