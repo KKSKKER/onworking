@@ -167,7 +167,7 @@ export function registerETLRoutes(
       }
     }
 
-    // 6. Process each file: parse, map columns, insert
+    // 6. 按规则(YAML)迭代 —— 每个规则对应一个要合并的 sheet
     const parser = new ExcelParser();
     let totalRows = 0;
     const fileStats: { file: string; rows: number; error?: string }[] = [];
@@ -176,47 +176,48 @@ export function registerETLRoutes(
     const insertSQL = `INSERT INTO "${tableName}" (${allCols.map(c => `"${c}"`).join(', ')}) VALUES (${allCols.map(() => '?').join(', ')})`;
     const extractedAt = new Date().toISOString();
 
-    for (const file of files) {
-      const fileName = pathMod.basename(file);
-      const relPath = pathMod.relative(sourceDir, file).replace(/\\/g, '/');
-      const rule = allRules.find(r => {
-        const pat = r.sources[0]?.pattern;
-        return pat ? expandBraces(pat).some(p => matchGlob(relPath, p)) : false;
-      });
-      if (!rule) {
-        fileStats.push({ file: fileName, rows: 0, error: 'No matching rule' });
+    for (const rule of allRules) {
+      const src = rule.sources[0];
+      if (!src || !src.pattern) {
+        fileStats.push({ file: rule.name, rows: 0, error: 'No source pattern' });
         continue;
       }
+
+      // 由规则 pattern 反推源文件
+      const file = files.find(f => {
+        const rel = pathMod.relative(sourceDir, f).replace(/\\/g, '/');
+        return expandBraces(src.pattern).some(p => matchGlob(rel, p));
+      });
+      if (!file) {
+        fileStats.push({ file: rule.name, rows: 0, error: 'No matching file' });
+        continue;
+      }
+      const fileName = pathMod.basename(file);
+
       try {
-        // Parse Excel
-        const src = rule.sources[0];
         const cfg = defaultParseConfig(file, src.sheetIndex ?? 0, src.headerRow);
         cfg.sheetName = src.sheetName;
+        if (src.endRow) cfg.dataEndRow = src.endRow;
         const chunks = parser.parse(file, cfg);
 
-        // Build field mapping: outputName -> sourceHeader + type from YAML
+        // 字段映射:outputName -> sourceHeader(仅当 outputName 命中 BigTable 列名时插入)
         const includedFields = rule.fields
           .filter((f: any) => f.included && f.sourceHeader)
           .sort((a: any, b: any) => a.order - b.order);
 
-        // Validate sourceHeaders exist in Excel
         const excelHeaders = new Set<string>();
         if (chunks.length > 0 && chunks[0].rows.length > 0) {
           for (const k of Object.keys(chunks[0].rows[0])) excelHeaders.add(k);
         }
         for (const f of includedFields) {
           if (!excelHeaders.has(f.sourceHeader!)) {
-            throw new Error(`列名 "${f.sourceHeader!}" 在 "${fileName}" 中不存在。可用: ${[...excelHeaders].join(', ')}`);
+            throw new Error(`列名 "${f.sourceHeader!}" 在 "${fileName}" (sheet ${src.sheetIndex ?? 0}) 中不存在。可用: ${[...excelHeaders].join(', ')}`);
           }
         }
 
-        // Build lookup: outputName -> sourceHeader
         const fieldLookup = new Map<string, string>();
-        for (const f of includedFields) {
-          fieldLookup.set(f.outputName, f.sourceHeader!);
-        }
+        for (const f of includedFields) fieldLookup.set(f.outputName, f.sourceHeader!);
 
-        // Insert rows
         let fileRows = 0;
         for (const chunk of chunks) {
           let ri = 0;
@@ -228,7 +229,6 @@ export function registerETLRoutes(
               if (!cell) return null;
               const raw = cell.raw?.trim();
               if (!raw) return null;
-              // Simple type conversion based on settings field type
               const fieldType = settingsFields.find((f: any) => f.name === col)?.type ?? 'string';
               return coerceValue(raw, fieldType);
             });
@@ -239,9 +239,9 @@ export function registerETLRoutes(
             ri++;
           }
         }
-        fileStats.push({ file: fileName, rows: fileRows });
+        fileStats.push({ file: `${fileName} [${src.sheetName ?? 'sheet'}]`, rows: fileRows });
       } catch (e) {
-        fileStats.push({ file: fileName, rows: 0, error: (e as Error).message });
+        fileStats.push({ file: `${fileName} [${src.sheetName ?? 'sheet'}]`, rows: 0, error: (e as Error).message });
       }
     }
 
