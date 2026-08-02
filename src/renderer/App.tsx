@@ -57,7 +57,7 @@ export const App: React.FC = () => {
             <View1Config onPreview={() => setActiveView('preview')} />
           </div>
           <div style={{ height: '100%', display: activeView === 'preview' ? 'block' : 'none' }}>
-            <View2Preview filePath={selectedFile} />
+            <View2Preview filePath={selectedFile} active={activeView === 'preview'} />
           </div>
           <div style={{ height: '100%', display: activeView === 'results' ? 'block' : 'none' }}>
             <View3Results />

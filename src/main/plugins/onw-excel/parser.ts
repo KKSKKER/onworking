@@ -51,7 +51,6 @@ export class ExcelParser implements SourceParserDefinition {
       header: 1,
       defval: '',
       raw: false,   // get formatted strings, not raw numbers
-      blankrows: false,
     });
 
     // Determine data range

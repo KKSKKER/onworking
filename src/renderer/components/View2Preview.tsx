@@ -10,9 +10,10 @@ interface PreviewSnapshot {
 
 interface View2PreviewProps {
   filePath: string;
+  active: boolean;
 }
 
-export const View2Preview: React.FC<View2PreviewProps> = ({ filePath }) => {
+export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, active }) => {
   const config = useTableConfig(filePath);
   const [status, setStatus] = useState('');
   const [snapshot, setSnapshot] = useState<PreviewSnapshot | null>(null);
@@ -39,11 +40,11 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath }) => {
 
   // Auto-load preview when entering view or when headerRow changes (debounced)
   useEffect(() => {
-    if (!filePath) return;
+    if (!filePath || !active) return;
     if (previewTimer.current) clearTimeout(previewTimer.current);
     previewTimer.current = setTimeout(() => loadPreview(), 300);
     return () => { if (previewTimer.current) clearTimeout(previewTimer.current); };
-  }, [filePath, headerRow, loadPreview]);
+  }, [filePath, headerRow, sheetIndex, active, loadPreview]);
 
   // Build field mapping at render time — always reflects latest config state
   const fieldMap = new Map<string, string>();
