@@ -51,18 +51,19 @@ export const App: React.FC = () => {
           onViewChange={setActiveView}
         />
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          {activeView === 'config' && (
+          {/* 四个视图常驻挂载、display 切换显隐 —— 切换视图不卸载,状态不丢失 */}
+          <div style={{ height: '100%', display: activeView === 'config' ? 'flex' : 'none' }}>
             <View1Config onPreview={() => setActiveView('preview')} />
-          )}
-          {activeView === 'preview' && (
+          </div>
+          <div style={{ height: '100%', display: activeView === 'preview' ? 'flex' : 'none' }}>
             <View2Preview filePath={selectedFile} />
-          )}
-          {activeView === 'results' && (
+          </div>
+          <div style={{ height: '100%', display: activeView === 'results' ? 'flex' : 'none' }}>
             <View3Results />
-          )}
-          {activeView === 'sql' && (
+          </div>
+          <div style={{ height: '100%', display: activeView === 'sql' ? 'flex' : 'none' }}>
             <View4Sql />
-          )}
+          </div>
         </div>
         <StatusBar status={status} fileCount={fileCount} lastETL={lastETL} />
       </div>
