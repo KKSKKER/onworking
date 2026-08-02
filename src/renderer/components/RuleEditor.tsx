@@ -1,6 +1,6 @@
 // onworking/src/renderer/components/RuleEditor.tsx
 import React, { useState } from 'react';
-import { useTableConfig } from '../state/TableConfigStore';
+import { useTableConfig, useTableConfigStore } from '../state/TableConfigStore';
 import { SearchableSelect } from './SearchableSelect';
 import { useBigTable, useBigTableStore } from '../state/BigTableStore';
 
@@ -10,7 +10,9 @@ interface RuleEditorProps {
 }
 
 export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) => {
+  const { getSheetConfigs, selectedSheetIndex, selectSheet } = useTableConfigStore();
   const config = useTableConfig(filePath);
+  const sheetConfigs = filePath ? (getSheetConfigs(filePath) ?? []) : [];
   const [loading, setLoading] = useState(false);
   const { selectedFolder } = useBigTableStore();
   const bigTable = useBigTable(selectedFolder);
@@ -38,13 +40,33 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
 
   return (
     <div style={{ fontSize: 12, padding: 8 }}>
-      <div style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span style={{ color: '#666' }}>工作表 (共 {sheetConfigs.length} 张):</span>
+        {sheetConfigs.map((sc, i) => (
+          <button key={sc.sheetIndex} onClick={() => selectSheet(i)}
+            title={sc.sheetName}
+            style={{ padding: '3px 10px', border: 'none', cursor: 'pointer', borderRadius: 3, fontSize: 12,
+              background: i === selectedSheetIndex ? '#007acc' : '#eee',
+              color: i === selectedSheetIndex ? 'white' : '#333' }}>
+            {sc.sheetName}
+          </button>
+        ))}
+        <span style={{ color: '#999' }}>当前: {config.sheetName}</span>
+        <span style={{ marginLeft: 8 }}>表头行: <input type="number" value={headerRow}
+          onChange={e => config.setHeaderRow(Number(e.target.value))}
+          style={{ width: 50, padding: '2px 4px' }} /></span>
+        <span>截止行: <input type="number" value={config.endRow ?? ''}
+          onChange={e => config.setEndRow(e.target.value === '' ? null : Number(e.target.value))}
+          placeholder="末尾" style={{ width: 70, padding: '2px 4px' }} /></span>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+          <input type="checkbox" checked={config.merge}
+            onChange={e => config.setMerge(e.target.checked)} />
+          合并进数据表
+        </label>
         <button onClick={autoDetect} disabled={loading}
           style={{ padding: '4px 12px', background: '#007acc', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
           {loading ? '检测中...' : '🔍 自动检测字段'}
         </button>
-        <span>表头行: <input type="number" value={headerRow} onChange={e => config.setHeaderRow(Number(e.target.value))}
-          style={{ width: 50, padding: '2px 4px' }} /></span>
         {ruleName && <span style={{ color: '#666' }}>规则: {ruleName}</span>}
       </div>
 
