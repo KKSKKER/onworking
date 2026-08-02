@@ -51,17 +51,18 @@ export const App: React.FC = () => {
           onViewChange={setActiveView}
         />
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          {/* 四个视图常驻挂载、display 切换显隐 —— 切换视图不卸载,状态不丢失 */}
-          <div style={{ height: '100%', display: activeView === 'config' ? 'flex' : 'none' }}>
+          {/* 四个视图常驻挂载、display 切换显隐 —— 切换视图不卸载,状态不丢失。
+              display:block 让视图根元素撑满容器宽度;flex 会让其按内容扩张,宽表格时整个视图超出窗口、被外层裁掉,结果区无横向滚动条 */}
+          <div style={{ height: '100%', display: activeView === 'config' ? 'block' : 'none' }}>
             <View1Config onPreview={() => setActiveView('preview')} />
           </div>
-          <div style={{ height: '100%', display: activeView === 'preview' ? 'flex' : 'none' }}>
+          <div style={{ height: '100%', display: activeView === 'preview' ? 'block' : 'none' }}>
             <View2Preview filePath={selectedFile} />
           </div>
-          <div style={{ height: '100%', display: activeView === 'results' ? 'flex' : 'none' }}>
+          <div style={{ height: '100%', display: activeView === 'results' ? 'block' : 'none' }}>
             <View3Results />
           </div>
-          <div style={{ height: '100%', display: activeView === 'sql' ? 'flex' : 'none' }}>
+          <div style={{ height: '100%', display: activeView === 'sql' ? 'block' : 'none' }}>
             <View4Sql />
           </div>
         </div>
