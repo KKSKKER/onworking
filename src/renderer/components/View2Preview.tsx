@@ -18,6 +18,7 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath }) => {
   const [snapshot, setSnapshot] = useState<PreviewSnapshot | null>(null);
 
   const headerRow = config?.headerRow ?? 1;
+  const sheetIndex = config?.sheetIndex ?? 0;
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadPreview = useCallback(async () => {
@@ -25,7 +26,7 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath }) => {
     setStatus('加载中...');
     setSnapshot(null);
     const res = await window.onworking.api.call('etl.preview', {
-      file: filePath, sheetIndex: 0, headerRow, maxRows: 100,
+      file: filePath, sheetIndex, headerRow, maxRows: 100,
     });
     if (res.success) {
       const s = res.data as PreviewSnapshot;
@@ -34,7 +35,7 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath }) => {
     } else {
       setStatus(`错误: ${res.error}`);
     }
-  }, [filePath, headerRow]);
+  }, [filePath, headerRow, sheetIndex]);
 
   // Auto-load preview when entering view or when headerRow changes (debounced)
   useEffect(() => {
