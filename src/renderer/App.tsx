@@ -5,6 +5,7 @@ import { WorkspaceStart } from './components/WorkspaceStart';
 import { View1Config } from './components/View1Config';
 import { View2Preview } from './components/View2Preview';
 import { View3Results } from './components/View3Results';
+import { View4Sql } from './components/View4Sql';
 import { useTableConfigStore } from './state/TableConfigStore';
 import { BigTableStoreProvider } from './state/BigTableStore';
 
@@ -58,6 +59,9 @@ export const App: React.FC = () => {
           )}
           {activeView === 'results' && (
             <View3Results />
+          )}
+          {activeView === 'sql' && (
+            <View4Sql />
           )}
         </div>
         <StatusBar status={status} fileCount={fileCount} lastETL={lastETL} />

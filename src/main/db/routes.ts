@@ -12,6 +12,11 @@ export function registerDBRoutes(router: APIRouter, db: DBConnection): void {
     return db.execute(sql, args);
   }, { description: 'Execute a SQL query' });
 
+  router.register('db.run', async (params) => {
+    const { sql, args } = params as { sql: string; args?: unknown[] };
+    return db.run(sql, args);
+  }, { description: 'Execute a write statement (INSERT/UPDATE/DELETE etc.)' });
+
   router.register('db.getTables', async () => db.getTables(),
     { description: 'List all database tables' });
 
