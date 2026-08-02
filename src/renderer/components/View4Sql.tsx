@@ -25,6 +25,8 @@ export const View4Sql: React.FC = () => {
   const [error, setError] = useState('');
   const [running, setRunning] = useState(false);
   const [writeInfo, setWriteInfo] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportInfo, setExportInfo] = useState('');
 
   const loadTables = (): void => {
     window.onworking.api.call('db.getTables').then(res => {
@@ -76,6 +78,26 @@ export const View4Sql: React.FC = () => {
     setRunning(false);
   };
 
+  const exportCsv = async (): Promise<void> => {
+    if (!sql.trim() || exporting) return;
+    setExporting(true);
+    setError('');
+    setExportInfo('');
+    try {
+      const res = await window.onworking.api.call('db.exportCsv', { sql });
+      if (res.success) {
+        const d = (res.data ?? {}) as { canceled?: boolean; rowCount?: number; filePath?: string };
+        if (d.canceled) setExportInfo('已取消导出');
+        else setExportInfo(`已导出 ${d.rowCount} 行 → ${d.filePath}`);
+      } else {
+        setError(res.error ?? '导出失败');
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    setExporting(false);
+  };
+
   const displayedRows = rows ? rows.slice(0, MAX_RENDER_ROWS) : [];
 
   return (
@@ -122,6 +144,12 @@ export const View4Sql: React.FC = () => {
                 borderRadius: 3, cursor: running ? 'default' : 'pointer', opacity: running ? 0.6 : 1 }}>
               {running ? '运行中...' : '▶ 运行 (Ctrl+Enter)'}
             </button>
+            <button onClick={exportCsv} disabled={exporting}
+              style={{ padding: '5px 16px', background: '#28a745', color: 'white', border: 'none',
+                borderRadius: 3, cursor: exporting ? 'default' : 'pointer', opacity: exporting ? 0.6 : 1 }}>
+              {exporting ? '导出中...' : '💾 导出 CSV'}
+            </button>
+            {exportInfo && <span style={{ color: '#2a7' }}>{exportInfo}</span>}
             {rows !== null && (
               <span style={{ color: '#666' }}>
                 {rows.length} 行
