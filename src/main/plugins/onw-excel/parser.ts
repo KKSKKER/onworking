@@ -56,7 +56,7 @@ export class ExcelParser implements SourceParserDefinition {
     // Determine data range
     const headerRowIdx = config.headerRow - 1; // 1-based → 0-based
     const dataStartIdx = (config.dataStartRow ?? config.headerRow + 1) - 1;
-    const dataEndIdx = config.dataEndRow ? config.dataEndRow - 1 : aoa.length;
+    const dataEndIdx = config.dataEndRow ? config.dataEndRow : aoa.length;
 
     // Extract headers
     const headerRow = aoa[headerRowIdx] ?? [];

@@ -2,8 +2,11 @@
 import React, { useEffect, useState } from 'react';
 import { useBigTableStore } from '../state/BigTableStore';
 import { DataTable } from './DataTable';
+import { PaginationBar } from './PaginationBar';
 
 interface View3ResultsProps {}
+
+const PAGE_SIZE = 500;
 
 export const View3Results: React.FC<View3ResultsProps> = () => {
   const { folders, workspaceRoot } = useBigTableStore();
@@ -16,6 +19,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     window.onworking.api.call('db.getTables').then(res => {
@@ -30,7 +34,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
   useEffect(() => {
     if (!selectedTable) return;
     setLoading(true);
-    window.onworking.api.call('etl.getTableData', { table: selectedTable, limit: 200, offset: 0 }).then(res => {
+    window.onworking.api.call('etl.getTableData', { table: selectedTable, limit: PAGE_SIZE, offset: page * PAGE_SIZE }).then(res => {
       if (res.success) {
         const data = res.data as { rows: Record<string, unknown>[]; total: number };
         setRows(data.rows);
@@ -38,7 +42,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
       }
       setLoading(false);
     });
-  }, [selectedTable]);
+  }, [selectedTable, page]);
 
   const [exporting, setExporting] = useState(false);
 
@@ -82,7 +86,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
       if (dbRes.success) {
         const allTables = (dbRes.data as string[]).filter(t => t !== '_lineage' && !t.startsWith('sqlite_'));
         setTables(allTables);
-        if (allTables.length > 0) setSelectedTable(allTables[0]);
+        if (allTables.length > 0) { setSelectedTable(allTables[0]); setPage(0); }
       }
     }
     setMerging(false);
@@ -98,7 +102,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
       if (dbRes.success) {
         const allTables = (dbRes.data as string[]).filter(t => t !== '_lineage' && !t.startsWith('sqlite_'));
         setTables(allTables);
-        if (allTables.length > 0) setSelectedTable(allTables[0]);
+        if (allTables.length > 0) { setSelectedTable(allTables[0]); setPage(0); }
       }
     }
     setBuildingMaster(false);
@@ -137,7 +141,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
         )}
         <span style={{ width: 1, height: 16, background: '#ddd' }} />
         <span>合并数据表:</span>
-        <select value={selectedTable} onChange={e => setSelectedTable(e.target.value)} style={{ padding: '2px 4px', width: 180 }}>
+        <select value={selectedTable} onChange={e => { setSelectedTable(e.target.value); setPage(0); }} style={{ padding: '2px 4px', width: 180 }}>
           {tables.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <span style={{ color: '#666' }}>共 {total} 行</span>
@@ -145,6 +149,10 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
           {exporting ? '导出中...' : '导出 CSV'}
         </button>
       </div>
+
+      {total > 0 && (
+        <PaginationBar page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+      )}
 
       <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
         {loading ? <div>加载中...</div>

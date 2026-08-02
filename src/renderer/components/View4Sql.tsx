@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { DataTable } from './DataTable';
 import { ResizableSidebar } from './ResizableSidebar';
+import { PaginationBar } from './PaginationBar';
 
 interface ColumnInfo {
   cid: number;
@@ -14,8 +15,8 @@ interface ColumnInfo {
   pk: number;
 }
 
-// 只渲染前 N 行,避免大结果集冻结界面(查询本身不限制)
-const MAX_RENDER_ROWS = 500;
+// 分页渲染,每页 N 行,避免大结果集冻结界面(查询本身不限制)
+const PAGE_SIZE = 500;
 
 export const View4Sql: React.FC = () => {
   const [tables, setTables] = useState<string[]>([]);
@@ -29,6 +30,7 @@ export const View4Sql: React.FC = () => {
   const [writeInfo, setWriteInfo] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportInfo, setExportInfo] = useState('');
+  const [page, setPage] = useState(0);
 
   const loadTables = (): void => {
     window.onworking.api.call('db.getTables').then(res => {
@@ -59,6 +61,7 @@ export const View4Sql: React.FC = () => {
         if (res.success) {
           const data = (res.data ?? []) as Record<string, unknown>[];
           setRows(data);
+          setPage(0);
           if (data.length > 0) setCols(Object.keys(data[0]));
         } else {
           setError(res.error ?? '查询失败');
@@ -100,7 +103,7 @@ export const View4Sql: React.FC = () => {
     setExporting(false);
   };
 
-  const displayedRows = rows ? rows.slice(0, MAX_RENDER_ROWS) : [];
+  const displayedRows = rows ? rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) : [];
 
   return (
     <div style={{ display: 'flex', height: '100%', fontSize: 12 }}>
@@ -153,14 +156,15 @@ export const View4Sql: React.FC = () => {
             </button>
             {exportInfo && <span style={{ color: '#2a7' }}>{exportInfo}</span>}
             {rows !== null && (
-              <span style={{ color: '#666' }}>
-                {rows.length} 行
-                {rows.length > MAX_RENDER_ROWS && `,仅渲染前 ${MAX_RENDER_ROWS} 行,请加 LIMIT`}
-              </span>
+              <span style={{ color: '#666' }}>{rows.length} 行</span>
             )}
             {writeInfo !== null && <span style={{ color: '#2a7' }}>{writeInfo}</span>}
           </div>
         </div>
+
+        {rows && (
+          <PaginationBar page={page} pageSize={PAGE_SIZE} total={rows.length} onPageChange={setPage} />
+        )}
 
         {error && (
           <div style={{ padding: '6px 12px', color: '#c00', background: '#fff0f0', borderBottom: '1px solid #f0d0d0', fontFamily: 'Consolas, monospace' }}>
