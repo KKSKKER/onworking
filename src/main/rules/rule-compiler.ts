@@ -22,6 +22,7 @@ export function ruleToParseConfigs(rule: RuleDefinition, resolvedFiles: Resolved
       expectedContentHash: file.contentHash,
       sheetName: source.sheetName,
       dataStartRow: source.headerRow + 1,
+      dataEndRow: source.endRow,          // <-- 新增
       headerRows: source.headerRows,
       headerJoinSeparator: source.headerJoinSeparator,
     });

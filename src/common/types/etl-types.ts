@@ -116,6 +116,7 @@ export interface RuleSource {
   headerRows?: number[];
   headerJoinSeparator?: string;
   dataRange?: string;
+  endRow?: number; // 截止行(1-based 含);省略=读到末尾
 }
 
 export interface FieldDefinition {
