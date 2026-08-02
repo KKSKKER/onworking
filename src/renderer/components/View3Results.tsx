@@ -1,6 +1,7 @@
 // onworking/src/renderer/components/View3Results.tsx
 import React, { useEffect, useState } from 'react';
 import { useBigTableStore } from '../state/BigTableStore';
+import { DataTable } from './DataTable';
 
 interface View3ResultsProps {}
 
@@ -137,26 +138,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
         {loading ? <div>加载中...</div>
           : rows.length === 0 ? <div style={{ color: '#999', padding: 20 }}>暂无数据。请先选择文件夹并点击「合并生成」。</div>
           : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-              <thead>
-                <tr style={{ background: '#f5f5f5', position: 'sticky', top: 0 }}>
-                  {columns.map(c => (
-                    <th key={c} style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'left', whiteSpace: 'nowrap' }}>{c}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
-                    {columns.map(c => (
-                      <td key={c} style={{ padding: '2px 8px', border: '1px solid #f0f0f0', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {row[c] !== null && row[c] !== undefined ? String(row[c]) : ''}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable columns={columns} rows={rows} />
           )}
       </div>
     </div>

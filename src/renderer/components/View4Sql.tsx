@@ -2,6 +2,7 @@
 // View4 SQL 工作台 — 从工作区 DB 用 SQL 拉数据
 // 表浏览器 + SQL 编辑器 + 结果网格
 import React, { useEffect, useState } from 'react';
+import { DataTable } from './DataTable';
 
 interface ColumnInfo {
   cid: number;
@@ -168,43 +169,13 @@ export const View4Sql: React.FC = () => {
 
         <div style={{ flex: 1, overflow: 'auto' }}>
           {rows && (
-            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-              <thead>
-                <tr>
-                  {cols.map(c => (
-                    <th key={c} style={{ border: '1px solid #e5e5e5', padding: '4px 8px', textAlign: 'left',
-                      background: '#fafafa', position: 'sticky', top: 0, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {displayedRows.map((r, i) => (
-                  <tr key={i}>
-                    {cols.map(c => (
-                      <td key={c} style={{ border: '1px solid #f0f0f0', padding: '2px 8px',
-                        maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        color: r[c] === null || r[c] === undefined ? '#aaa' : 'inherit' }}>
-                        {formatCell(r[c])}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable columns={cols} rows={displayedRows} />
           )}
         </div>
       </div>
     </div>
   );
 };
-
-function formatCell(v: unknown): string {
-  if (v === null || v === undefined) return 'NULL';
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
-}
 
 /** 读语句(返回行)走 db.query;其余(INSERT/UPDATE/DELETE/DDL)走 db.run */
 function isReadStatement(sql: string): boolean {
