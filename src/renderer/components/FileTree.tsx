@@ -10,9 +10,10 @@ interface FileEntry {
 interface FileTreeProps {
   onSelectFile: (filePath: string) => void;
   selectedFile: string;
+  onPreviewFile?: (filePath: string) => void;
 }
 
-export const FileTree: React.FC<FileTreeProps> = ({ onSelectFile, selectedFile }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onSelectFile, selectedFile, onPreviewFile }) => {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(true);
 

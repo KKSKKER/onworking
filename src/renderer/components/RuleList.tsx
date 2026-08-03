@@ -7,8 +7,8 @@ interface RuleSummary {
 }
 
 interface RuleListProps {
-  onSelectRule: (ruleName: string) => void;
-  selectedRuleName: string;
+  onSelectRule?: (ruleName: string) => void;
+  selectedRuleName?: string;
 }
 
 export const RuleList: React.FC<RuleListProps> = ({ onSelectRule, selectedRuleName }) => {
@@ -30,7 +30,7 @@ export const RuleList: React.FC<RuleListProps> = ({ onSelectRule, selectedRuleNa
       </div>
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {rules.map(r => (
-          <li key={r.name} onClick={() => onSelectRule(r.name)}
+          <li key={r.name} onClick={() => onSelectRule?.(r.name)}
             style={{ padding: '4px 8px', cursor: 'pointer',
               background: r.name === selectedRuleName ? '#e6f0ff' : 'transparent',
               borderBottom: '1px solid #f0f0f0' }}>
