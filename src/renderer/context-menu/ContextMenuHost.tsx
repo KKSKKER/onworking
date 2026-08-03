@@ -1,6 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ContextMenuRegistry } from './registry';
 import { MenuItem, MenuContext } from './base';
+import { FileItemMenu } from './menus/FileItemMenu';
+import { FolderItemMenu } from './menus/FolderItemMenu';
+import { FolderFileMenu } from './menus/FolderFileMenu';
+import { RuleItemMenu } from './menus/RuleItemMenu';
+
+ContextMenuRegistry.register('file', FileItemMenu);
+ContextMenuRegistry.register('folder', FolderItemMenu);
+ContextMenuRegistry.register('folder-file', FolderFileMenu);
+ContextMenuRegistry.register('rule', RuleItemMenu);
 
 interface HostState { items: MenuItem[]; ctx: MenuContext; x: number; y: number; }
 interface SubState { items: MenuItem[]; ctx: MenuContext; x: number; y: number; }
