@@ -136,6 +136,7 @@ export function registerWorkspaceRoutes(
     const root = getActiveRoot();
     if (!root) throw new Error('没有活动工作区');
     const abs = assertInsideRoot(root, folderPath);
+    if (path.resolve(abs) === path.resolve(root)) throw new Error('不能删除工作区根目录');
     const settingsPath = path.join(abs, 'settings.json');
     if (fs.existsSync(settingsPath)) {
       try {
