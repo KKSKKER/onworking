@@ -23,16 +23,28 @@ export function registerETLRoutes(
   const ruleStore = new RuleStore(workspace.rulesDir);
 
   router.register('etl.preview', async (params) => {
-    const { file, sheetIndex, sheetName, headerRow, maxRows } = params as {
+    const { file, sheetIndex, sheetName, headerRow, maxRows, offset, limit, dataEndRow } = params as {
       file: string; sheetIndex?: number; sheetName?: string; headerRow?: number; maxRows?: number;
+      offset?: number; limit?: number; dataEndRow?: number;
     };
     const parser = new ExcelParser();
     const config = defaultParseConfig(file, sheetIndex ?? 0, headerRow ?? 1);
     config.sheetName = sheetName;
     if (maxRows) config.chunkSize = maxRows;
+    if (dataEndRow) config.dataEndRow = dataEndRow;
     const chunks = parser.parse(file, config);
-    return excelToUniverSnapshot(chunks, sheetName);
-  }, { description: 'Preview Excel file as Univer snapshot' });
+    const snap = excelToUniverSnapshot(chunks, sheetName);
+    // 分页切片:返回当前页 rows,总数不受分页影响(已受 dataEndRow 约束)
+    const off = Math.max(0, offset ?? 0);
+    const lim = limit ?? 100;
+    return {
+      sheetName: snap.sheetName,
+      headers: snap.headers,
+      rows: snap.rows.slice(off, off + lim),
+      totalRows: snap.totalRows,
+      totalColumns: snap.totalColumns,
+    };
+  }, { description: 'Preview Excel file as Univer snapshot (paginated)' });
 
   router.register('etl.scanSheets', async (params) => {
     const { file } = params as { file: string };
