@@ -3,6 +3,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { app } from 'electron';
 import type { APIRouter } from '../api/router';
+import type { DBConnection } from '../db/connection';
+import { assertInsideRoot } from '../fs/guard';
+import { normalizeTableName } from '../etl/table-name';
 import { resolveLaunchMode } from './launch';
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'workspaces.json');
@@ -85,6 +88,7 @@ export class WorkspaceManager {
 export function registerWorkspaceRoutes(
   router: APIRouter,
   onInit: (ws: WorkspaceInfo) => void,
+  getDb?: () => DBConnection | null,
 ): void {
   router.register('workspace.create', async (params) => {
     const { rootPath } = params as { rootPath: string };
@@ -126,6 +130,24 @@ export function registerWorkspaceRoutes(
     try { onInit(info); } catch (e) { console.error('[workspace.launch] onInit failed:', e); }
     return info;
   }, { description: 'Open or create a workspace based on .onworking/ presence' });
+
+  router.register('workspace.deleteFolder', async (params) => {
+    const { path: folderPath } = params as { path: string };
+    const root = getActiveRoot();
+    if (!root) throw new Error('没有活动工作区');
+    const abs = assertInsideRoot(root, folderPath);
+    const settingsPath = path.join(abs, 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+      try {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+        const tableName = normalizeTableName(settings.tableName || settings.name || path.basename(abs));
+        const db = getDb?.();
+        if (db) { try { await db.exec(`DROP TABLE IF EXISTS "${tableName}"`); } catch { /* 表不存在则忽略 */ } }
+      } catch { /* settings 缺失/损坏则只删目录 */ }
+    }
+    fs.rmSync(abs, { recursive: true, force: true });
+    return { ok: true };
+  }, { description: 'Delete a BigTable folder (with its db) and drop merged table' });
 
   router.register('workspace.listRecent', async () => {
     return WorkspaceManager.listRecent();

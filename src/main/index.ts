@@ -107,7 +107,7 @@ app.whenReady().then(() => {
     setActiveRoot(ws.root);
     initModules(ws);
     buildApplicationMenu(() => mainWindow);
-  });
+  }, () => db);
 
   // Auto-open if exactly one recent workspace
   const recent = WorkspaceManager.listRecent();

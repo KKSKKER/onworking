@@ -10,6 +10,8 @@ import { RuleStore } from '../rules/rule-store';
 import { defaultParseConfig } from '../../common/types/parse-config';
 import { matchGlob } from '../../common/utils/glob';
 import type { RuleDefinition } from '../../common/types/etl-types';
+import { deleteFileWithinRoot, copyFileWithinRoot, renameSourceFileWithinRoot, collectRulesDirs } from '../fs/file-ops';
+import { normalizeTableName } from './table-name';
 
 export function registerETLRoutes(
   router: APIRouter,
@@ -104,6 +106,23 @@ export function registerETLRoutes(
     return { rows, total, limit: l, offset: o };
   }, { description: 'Get paginated data from an ETL table' });
 
+  router.register('etl.deleteFile', async (params) => {
+    const { path: targetPath } = params as { path: string };
+    deleteFileWithinRoot(workspace.root, targetPath);
+    return { ok: true };
+  }, { description: 'Delete a source file' });
+
+  router.register('etl.copyFile', async (params) => {
+    const { sourcePath, destDir, overwrite } = params as { sourcePath: string; destDir: string; overwrite?: boolean };
+    return copyFileWithinRoot(workspace.root, sourcePath, destDir, !!overwrite);
+  }, { description: 'Copy a source file into a directory (conflict-aware)' });
+
+  router.register('etl.renameFile', async (params) => {
+    const { path: oldPath, newName } = params as { path: string; newName: string };
+    const rulesDirs = collectRulesDirs(workspace.root, workspace.rulesDir);
+    return renameSourceFileWithinRoot(workspace.root, oldPath, newName, rulesDirs);
+  }, { description: 'Rename a source file and update rule patterns' });
+
   router.register('etl.mergeFolder', async (params) => {
     const { folderPath } = params as { folderPath: string };
     const fs = await import('node:fs');
@@ -121,8 +140,7 @@ export function registerETLRoutes(
     if (settingsFields.length === 0) throw new Error('No fields in settings.json');
 
     const autoIncrementId = !!settings.autoIncrementId;
-    const rawTableName = (settings.tableName || settings.name || pathMod.basename(folderPath)).trim();
-    const tableName = rawTableName.replace(/[^a-zA-Z0-9一-鿿_]/g, '_').toLowerCase() || 'bigtable';
+    const tableName = normalizeTableName(settings.tableName || settings.name || pathMod.basename(folderPath));
 
     // 2. Fresh DB
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
