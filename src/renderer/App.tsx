@@ -42,7 +42,7 @@ export const App: React.FC = () => {
   const workspaceName = (workspace.name as string) ?? (workspace.root as string ?? '').replace(/^.*[\\/]/, '');
 
   return (
-    <BigTableStoreProvider workspaceRoot={String(workspace.root ?? '')}>
+    <BigTableStoreProvider key={String(workspace.root ?? '')} workspaceRoot={String(workspace.root ?? '')}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
         <TopBar
           workspaceName={workspaceName}
