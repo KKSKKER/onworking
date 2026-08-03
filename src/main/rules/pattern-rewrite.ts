@@ -7,12 +7,17 @@ export function rewriteRulePatterns(
   newBasename: string,
 ): RuleDefinition[] {
   if (!oldBasename || oldBasename === newBasename) return rules;
+  const oldLower = oldBasename.toLowerCase();
   return rules.map(rule => {
     const sources = (rule.sources ?? []).map(src => {
-      if (src.pattern && src.pattern.includes(oldBasename)) {
-        return { ...src, pattern: src.pattern.split(oldBasename).join(newBasename) };
-      }
-      return src;
+      if (!src.pattern) return src;
+      // 仅匹配 pattern 的最后一个路径段(不区分大小写,与 Windows 文件系统一致),
+      // 避免把仅包含旧文件名字符串的其他规则误改。
+      const segments = src.pattern.split('/');
+      const last = segments[segments.length - 1];
+      if (last.toLowerCase() !== oldLower) return src;
+      const pattern = [...segments.slice(0, -1), newBasename].join('/');
+      return { ...src, pattern };
     });
     const changed = sources.some((src, i) => src !== (rule.sources ?? [])[i]);
     return changed ? { ...rule, sources } : rule;

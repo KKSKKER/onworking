@@ -48,6 +48,19 @@ describe('rewriteRulePatterns', () => {
     const [next] = rewriteRulePatterns([rule('**/other.xlsx')], 'a.xlsx', 'b.xlsx');
     expect(next.sources[0].pattern).toBe('**/other.xlsx');
   });
+  it('does not rewrite a pattern whose last segment merely contains the old basename', () => {
+    const r = rule('**/2024导出.xlsx');
+    const next = rewriteRulePatterns([r], '导出.xlsx', '新导出.xlsx');
+    expect(next[0]).toBe(r);
+  });
+  it('rewrites a pattern whose last segment equals the old basename', () => {
+    const [next] = rewriteRulePatterns([rule('**/2024导出.xlsx')], '2024导出.xlsx', '发票2024.xlsx');
+    expect(next.sources[0].pattern).toBe('**/发票2024.xlsx');
+  });
+  it('matches the last segment case-insensitively', () => {
+    const [next] = rewriteRulePatterns([rule('**/A.XLSX')], 'a.xlsx', 'b.xlsx');
+    expect(next.sources[0].pattern).toBe('**/b.xlsx');
+  });
 });
 
 describe('deleteFileWithinRoot', () => {
@@ -113,6 +126,16 @@ describe('renameSourceFileWithinRoot', () => {
     const d = tmp();
     const old = path.join(d, 'a.xlsx'); fs.writeFileSync(old, 'x');
     expect(() => renameSourceFileWithinRoot(d, old, '../evil.xlsx', [])).toThrow();
+  });
+  it('does not rewrite a sibling rule whose pattern merely contains the old basename', () => {
+    const d = tmp();
+    const rulesDir = path.join(d, '.onworking', 'rules'); fs.mkdirSync(rulesDir, { recursive: true });
+    fs.writeFileSync(path.join(rulesDir, 'rule_a.yaml'), 'name: rule_a\nsources:\n  - pattern: "**/2024导出.xlsx"\nfields: []\n');
+    const f = path.join(d, 'source'); fs.mkdirSync(f);
+    const old = path.join(f, '导出.xlsx'); fs.writeFileSync(old, 'x');
+    const r = renameSourceFileWithinRoot(d, old, '新导出.xlsx', [rulesDir]);
+    expect(r.rulesUpdated).toBe(0);
+    expect(fs.readFileSync(path.join(rulesDir, 'rule_a.yaml'), 'utf-8')).toContain('**/2024导出.xlsx');
   });
 });
 
