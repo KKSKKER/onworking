@@ -48,6 +48,7 @@ export class TableConfig {
 
   private onChange: () => void;
   private detectSeq = 0;
+  private detectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(opts: { filePath: string; sheetIndex: number; sheetName: string; onChange: () => void }) {
     this.filePath = opts.filePath;
@@ -66,6 +67,9 @@ export class TableConfig {
     this.headerRow = n;
     this.saved = false;
     this.onChange();
+    // 防抖自动重检测字段:改表头行后字段列表应随之更新(回归自 701aa3ae)
+    if (this.detectTimer) clearTimeout(this.detectTimer);
+    this.detectTimer = setTimeout(() => { this.detectTimer = null; void this.detectFields(); }, 400);
   }
 
   setEndRow(n: number | null): void {
