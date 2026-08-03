@@ -1,6 +1,11 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { ContextMenuRegistry } from '../src/renderer/context-menu/registry';
 import { BaseContextMenu, MenuItem, MenuContext } from '../src/renderer/context-menu/base';
+import { FileItemMenu } from '../src/renderer/context-menu/menus/FileItemMenu';
+import { FolderItemMenu } from '../src/renderer/context-menu/menus/FolderItemMenu';
+import { FolderFileMenu } from '../src/renderer/context-menu/menus/FolderFileMenu';
+import { RuleItemMenu } from '../src/renderer/context-menu/menus/RuleItemMenu';
+import { FileClipboard } from '../src/renderer/state/FileClipboard';
 
 beforeEach(() => {
   (globalThis as unknown as { window: unknown }).window = { onworking: { api: { call: () => Promise.resolve({ success: true, data: null }) } } };
@@ -36,5 +41,34 @@ describe('BaseContextMenu', () => {
     expect(items[1].enabled).toBe(false);
     items[0].onClick?.(ctx);
     expect(ran).toBe(true);
+  });
+});
+
+const ctx = (target: unknown): MenuContext =>
+  ({ targetType: 'x', target, api: window.onworking.api, actions: {} }) as MenuContext;
+
+describe('menu classes', () => {
+  beforeEach(() => FileClipboard.clear());
+  it('FileItemMenu exposes file ops', () => {
+    const items = new FileItemMenu().getItems(ctx({ path: '/ws/source/a.xlsx' }));
+    expect(items.map(i => i.id)).toEqual(['open-preview', 'open-dir', 'copy', 'paste', 'rename', 'delete']);
+    expect(items.find(i => i.id === 'delete')?.danger).toBe(true);
+  });
+  it('FolderItemMenu exposes folder ops', () => {
+    const items = new FolderItemMenu().getItems(ctx({ name: '大表1', folderPath: '/ws/大表1' }));
+    expect(items.map(i => i.id)).toEqual(['settings', 'merge', 'open-dir', 'paste', 'delete']);
+  });
+  it('FolderFileMenu exposes file ops', () => {
+    const items = new FolderFileMenu().getItems(ctx({ path: '/ws/大表1/source/b.xlsx', folderPath: '/ws/大表1' }));
+    expect(items.map(i => i.id)).toEqual(['open-preview', 'open-dir', 'copy', 'paste', 'rename', 'delete']);
+  });
+  it('RuleItemMenu exposes rule ops', () => {
+    const items = new RuleItemMenu().getItems(ctx({ name: 'rule_a' }));
+    expect(items.map(i => i.id)).toEqual(['edit', 'delete']);
+    expect(items.find(i => i.id === 'delete')?.danger).toBe(true);
+  });
+  it('paste is disabled when clipboard empty', () => {
+    const items = new FileItemMenu().getItems(ctx({ path: '/ws/source/a.xlsx' }));
+    expect(items.find(i => i.id === 'paste')?.enabled).toBe(false);
   });
 });
