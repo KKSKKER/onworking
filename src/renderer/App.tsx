@@ -9,17 +9,6 @@ import { View4Sql } from './components/View4Sql';
 import { useTableConfigStore } from './state/TableConfigStore';
 import { BigTableStoreProvider } from './state/BigTableStore';
 
-declare global {
-  interface Window {
-    onworking: {
-      platform: string;
-      api: {
-        call(command: string, params?: Record<string, unknown>): Promise<{ success: boolean; data?: unknown; error?: string }>;
-      };
-    };
-  }
-}
-
 export const App: React.FC = () => {
   const [workspace, setWorkspace] = useState<Record<string, unknown> | null>(null);
   const [activeView, setActiveView] = useState<ViewId>('config');

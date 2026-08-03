@@ -12,7 +12,17 @@ const api = {
   },
 };
 
-contextBridge.exposeInMainWorld('onworking', {
+const onworking = {
   platform: process.platform,
   api,
-});
+  pickFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:pickFolder'),
+  showInFolder: (fullPath: string): Promise<void> => ipcRenderer.invoke('shell:showInFolder', fullPath),
+  confirm: (opts: { title: string; message: string; okLabel?: string }): Promise<boolean> =>
+    ipcRenderer.invoke('dialog:confirm', opts),
+  onOpenWorkspace: (cb: (payload?: { rootPath?: string }) => void): (() => void) => {
+    const listener = (_e: unknown, payload?: { rootPath?: string }) => cb(payload);
+    ipcRenderer.on('menu:open-workspace', listener);
+    return () => ipcRenderer.removeListener('menu:open-workspace', listener);
+  },
+};
+contextBridge.exposeInMainWorld('onworking', onworking);
