@@ -85,6 +85,7 @@ function createWindow(): void {
       preload: path.join(__dirname, 'preload.js'),
     },
     title: 'OnWorking',
+    icon: path.join(__dirname, '../../build/icon.png'),
   });
 
   const devServer = process.env.VITE_DEV_SERVER_URL;

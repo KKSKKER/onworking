@@ -6,8 +6,10 @@ files:
   - dist/**/*
   - package.json
 win:
+  icon: build/icon.png
   target: nsis
 mac:
+  icon: build/icon.png
   target: dmg
 linux:
   target: AppImage
