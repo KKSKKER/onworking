@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { app } from 'electron';
 import type { APIRouter } from '../api/router';
+import { resolveLaunchMode } from './launch';
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'workspaces.json');
 
@@ -107,6 +108,16 @@ export function registerWorkspaceRoutes(
   router.register('workspace.info', async () => {
     return { error: 'workspace.info requires active workspace context' };
   }, { description: 'Get current workspace info' });
+
+  router.register('workspace.launch', async (params) => {
+    const { rootPath } = params as { rootPath: string };
+    const ws = resolveLaunchMode(rootPath) === 'open'
+      ? WorkspaceManager.open(rootPath)
+      : WorkspaceManager.create(rootPath);
+    const info = ws.toInfo();
+    try { onInit(info); } catch (e) { console.error('[workspace.launch] onInit failed:', e); }
+    return info;
+  }, { description: 'Open or create a workspace based on .onworking/ presence' });
 
   router.register('workspace.listRecent', async () => {
     return WorkspaceManager.listRecent();
