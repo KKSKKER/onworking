@@ -8,9 +8,10 @@ import { registerDBRoutes } from './db/routes';
 import { registerEntityRoutes, loadEntitiesFromDir } from './entity/routes';
 import { registerRuleRoutes } from './rules/routes';
 import { registerETLRoutes } from './etl/routes';
-import { registerWorkspaceRoutes, WorkspaceManager } from './workspace/manager';
+import { registerWorkspaceRoutes, WorkspaceManager, setActiveRoot } from './workspace/manager';
 import type { WorkspaceInfo } from './workspace/manager';
 import { registerUI } from './ui/ipc';
+import { buildApplicationMenu } from './menu';
 
 let mainWindow: BrowserWindow | null = null;
 let db: DBConnection | null = null;
@@ -99,20 +100,28 @@ app.whenReady().then(() => {
   cleanUserDataCache();
 
   // Register workspace routes with initModules as callback
-  // so that workspace.open/create triggers full module initialization
-  registerWorkspaceRoutes(apiRouter, initModules);
+  // so that workspace.open/create triggers full module initialization.
+  // Wrap initModules to track the active root and rebuild the menu so the
+  // 帮助→打开数据目录 item tracks the currently active workspace.
+  registerWorkspaceRoutes(apiRouter, (ws) => {
+    setActiveRoot(ws.root);
+    initModules(ws);
+    buildApplicationMenu(() => mainWindow);
+  });
 
   // Auto-open if exactly one recent workspace
   const recent = WorkspaceManager.listRecent();
   if (recent.length === 1) {
     try {
       const ws = WorkspaceManager.open(recent[0].rootPath);
+      setActiveRoot(ws.root);
       initModules(ws.toInfo());
     } catch { /* workspace may be invalid, let user select in UI */ }
   }
 
   setupIPC(apiRouter);
   registerUI(() => mainWindow);
+  buildApplicationMenu(() => mainWindow);
   createWindow();
 });
 

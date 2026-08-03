@@ -7,6 +7,11 @@ import { resolveLaunchMode } from './launch';
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'workspaces.json');
 
+// 当前活动工作区根路径(仅内存态,不持久化)。菜单等需要知道"当前在哪个工作区"。
+let activeRoot: string | null = null;
+export function getActiveRoot(): string | null { return activeRoot; }
+export function setActiveRoot(root: string | null): void { activeRoot = root; }
+
 export interface WorkspaceMeta {
   rootPath: string;
   name: string;
@@ -54,6 +59,7 @@ export class WorkspaceManager {
   }
 
   static create(rootPath: string): Workspace {
+    setActiveRoot(rootPath);
     const ws = new Workspace(rootPath);
     ws.init();
     WorkspaceManager._addRecent({ rootPath, name: path.basename(rootPath), openedAt: new Date().toISOString() });
@@ -62,6 +68,7 @@ export class WorkspaceManager {
 
   static open(rootPath: string): Workspace {
     if (!fs.existsSync(rootPath)) throw new Error(`Workspace not found: ${rootPath}`);
+    setActiveRoot(rootPath);
     const ws = new Workspace(rootPath);
     WorkspaceManager._addRecent({ rootPath, name: path.basename(rootPath), openedAt: new Date().toISOString() });
     return ws;
@@ -111,6 +118,7 @@ export function registerWorkspaceRoutes(
 
   router.register('workspace.launch', async (params) => {
     const { rootPath } = params as { rootPath: string };
+    setActiveRoot(rootPath);
     const ws = resolveLaunchMode(rootPath) === 'open'
       ? WorkspaceManager.open(rootPath)
       : WorkspaceManager.create(rootPath);
