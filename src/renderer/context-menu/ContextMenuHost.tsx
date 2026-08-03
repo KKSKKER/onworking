@@ -71,20 +71,23 @@ export const ContextMenuHost: React.FC = () => {
   const groupOf = (i: number): string => state.items[i].group ?? '';
   const sep = (i: number): boolean => i > 0 && groupOf(i) !== groupOf(i - 1);
 
-  const row = (it: MenuItem, i: number, list: MenuItem[], ctx: MenuContext, activeIdx: number, setIdx: (f: (i: number) => number) => void, onHover?: () => void): React.ReactNode => (
+  const row = (it: MenuItem, i: number, list: MenuItem[], ctx: MenuContext, activeIdx: number, setIdx: (f: (i: number) => number) => void, onHover?: () => void): React.ReactNode => {
+    const disabled = it.enabled === false;
+    return (
     <div key={it.id} onMouseEnter={() => { setIdx(() => i); onHover?.(); }}
       onClick={() => run(it)}
-      style={{ padding: '5px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between',
-        alignItems: 'center', gap: 12, background: i === activeIdx ? '#007acc' : 'transparent',
-        color: it.danger ? (i === activeIdx ? '#ffd0d4' : '#d13438') : (i === activeIdx ? '#fff' : '#333'),
-        fontSize: 13, whiteSpace: 'nowrap' }}>
+      style={{ padding: '5px 12px', cursor: disabled ? 'default' : 'pointer', display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', gap: 12, background: disabled ? 'transparent' : (i === activeIdx ? '#007acc' : 'transparent'),
+        color: disabled ? '#999' : (it.danger ? (i === activeIdx ? '#ffd0d4' : '#d13438') : (i === activeIdx ? '#fff' : '#333')),
+        opacity: disabled ? 0.6 : 1, fontSize: 13, whiteSpace: 'nowrap' }}>
       <span>{it.icon ? `${it.icon} ` : ''}{it.label}</span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {it.shortcut && <span style={{ fontSize: 11, color: i === activeIdx ? '#d0e8ff' : '#999' }}>{it.shortcut}</span>}
         {it.children?.length ? <span style={{ fontSize: 10 }}>▶</span> : null}
       </span>
     </div>
-  );
+    );
+  };
 
   return (
     <>
