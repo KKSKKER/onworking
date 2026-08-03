@@ -8,6 +8,7 @@ import { View3Results } from './components/View3Results';
 import { View4Sql } from './components/View4Sql';
 import { useTableConfigStore } from './state/TableConfigStore';
 import { BigTableStoreProvider } from './state/BigTableStore';
+import { openWorkspace, openWorkspacePath } from './api/openWorkspace';
 
 export const App: React.FC = () => {
   const [workspace, setWorkspace] = useState<Record<string, unknown> | null>(null);
@@ -17,6 +18,15 @@ export const App: React.FC = () => {
   const [lastETL, setLastETL] = useState('');
   const [etlResult, setETLResult] = useState<Record<string, unknown>>();
   const { selectedFile } = useTableConfigStore();
+
+  React.useEffect(() => {
+    return window.onworking.onOpenWorkspace(async (payload) => {
+      try {
+        const info = payload?.rootPath ? await openWorkspacePath(payload.rootPath) : await openWorkspace();
+        if (info) setWorkspace(info as unknown as Record<string, unknown>);
+      } catch (e) { console.error('[App] open workspace failed:', e); }
+    });
+  }, []);
 
   React.useEffect(() => {
     if (!workspace) return;
