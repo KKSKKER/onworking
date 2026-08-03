@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { FileTree } from './FileTree';
+// import { FileTree } from './FileTree';
 import { FolderTree } from './FolderTree';
-import { RuleList } from './RuleList';
+// import { RuleList } from './RuleList';
 import { RuleEditor } from './RuleEditor';
 import { BigTableSettings } from './BigTableSettings';
 import { ResizableSidebar } from './ResizableSidebar';
@@ -16,14 +16,14 @@ export const View1Config: React.FC<View1ConfigProps> = ({ onPreview }) => {
   return (
     <div style={{ display: 'flex', height: '100%' }}>
       <ResizableSidebar initialWidth={380} minWidth={220} contentStyle={{ padding: 8, borderRight: '1px solid #ddd' }}>
-        <FileTree selectedFile={selectedFile} onSelectFile={f => { selectFile(f).catch(console.error); }} onPreviewFile={f => { selectFile(f).then(() => onPreview()).catch(console.error); }} />
+        {/* <FileTree selectedFile={selectedFile} onSelectFile={f => { selectFile(f).catch(console.error); }} onPreviewFile={f => { selectFile(f).then(() => onPreview()).catch(console.error); }} /> */}
         <div style={{ borderTop: '1px solid #eee', marginTop: 8, paddingTop: 8 }}>
           <FolderTree selectedFile={selectedFile} onSelectFile={f => { selectFile(f).catch(console.error); }}
             onPreviewFile={f => { selectFile(f).then(() => onPreview()).catch(console.error); }}
             onOpenSettings={setSettingsFolder} />
         </div>
         <div style={{ borderTop: '1px solid #eee', marginTop: 8, paddingTop: 8 }}>
-          <RuleList />
+          {/* <RuleList /> */}
         </div>
       </ResizableSidebar>
       <div style={{ flex: 1, overflow: 'auto' }}>
