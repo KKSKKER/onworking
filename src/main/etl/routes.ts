@@ -118,6 +118,69 @@ export function registerETLRoutes(
     return { rows, total, limit: l, offset: o };
   }, { description: 'Get paginated data from an ETL table' });
 
+  router.register('etl.buildMasterTable', async () => {
+    const rootDir = workspace.root;
+    if (!fs.existsSync(rootDir)) throw new Error('Workspace root not found');
+
+    // 扫描大表文件夹:含 settings.json 且含 .onworking/db/onworking.db 的目录
+    const bigTableFolders: string[] = [];
+    for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'source') continue;
+      const settingsPath = path.join(rootDir, entry.name, 'settings.json');
+      const dbPath = path.join(rootDir, entry.name, '.onworking', 'db', 'onworking.db');
+      if (fs.existsSync(settingsPath) && fs.existsSync(dbPath)) {
+        bigTableFolders.push(entry.name);
+      }
+    }
+
+    const syncedTables: string[] = [];
+    let folderCount = 0;
+    for (const folderName of bigTableFolders) {
+      const folderDbPath = path.join(rootDir, folderName, '.onworking', 'db', 'onworking.db');
+      const escapedPath = folderDbPath.replace(/\\/g, '/').replace(/'/g, "''");
+      folderCount++;
+      try {
+        await db.exec(`ATTACH DATABASE '${escapedPath}' AS __bt`);
+        try {
+          // 只同步用户数据表:SQL 排除 SQLite 系统表(sqlite_%),JS 排除应用内部下划线表(如 _lineage)
+          const tables = (await db.execute(
+            "SELECT name FROM __bt.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+          ) as { name: string }[]).filter(t => !t.name.startsWith('_'));
+          for (const { name } of tables) {
+            const q = `"${name.replace(/"/g, '""')}"`;
+            // 从 sqlite_master 取原始 DDL 重建,保留主键/列类型
+            const meta = await db.execute(
+              "SELECT sql FROM __bt.sqlite_master WHERE type='table' AND name = ?", [name],
+            );
+            if (meta.length === 0) continue;
+            const createSql = String((meta[0] as Record<string, unknown>).sql);
+            // 同名表 = 刷新语义:先删后建,只动同名表,不碰其它表
+            await db.exec(`DROP TABLE IF EXISTS ${q}`);
+            await db.exec(createSql);
+            // 逐行复制数据
+            const rows = await db.execute(`SELECT * FROM __bt.${q}`);
+            for (const row of rows) {
+              const keys = Object.keys(row);
+              if (keys.length === 0) continue;
+              const phs = keys.map(() => '?').join(', ');
+              await db.run(
+                `INSERT INTO ${q} (${keys.map(k => `"${k.replace(/"/g, '""')}"`).join(', ')}) VALUES (${phs})`,
+                keys.map(k => (row[k] === undefined ? null : row[k])),
+              );
+            }
+            syncedTables.push(name);
+          }
+        } finally {
+          await db.exec('DETACH DATABASE __bt');
+        }
+      } catch (e) {
+        console.error(`Failed to sync folder ${folderName}:`, e);
+      }
+    }
+
+    return { syncedTables, folderCount };
+  }, { description: 'Build master table in workspace DB from all BigTable folder DBs' });
+
   router.register('etl.deleteFile', async (params) => {
     const { path: targetPath } = params as { path: string };
     deleteFileWithinRoot(workspace.root, targetPath);
@@ -163,7 +226,7 @@ export function registerETLRoutes(
     // 3. Create table
     const typeMap: Record<string, string> = { string: 'TEXT', cents: 'INTEGER', number: 'REAL', date: 'TEXT' };
     const colDefs = settingsFields.map((f: any) => `"${f.name}" ${typeMap[f.type] ?? 'TEXT'}`);
-    const sourceCols = '"__source_file" TEXT, "__source_row" INTEGER, "__extracted_at" TEXT';
+    const sourceCols = '"__source_file" TEXT, "__source_sheet" TEXT, "__source_row" INTEGER, "__extracted_at" TEXT';
     let createSQL: string;
     if (autoIncrementId) {
       createSQL = `CREATE TABLE "${tableName}" (id INTEGER PRIMARY KEY AUTOINCREMENT, ${colDefs.join(', ')}, ${sourceCols})`;
@@ -202,7 +265,7 @@ export function registerETLRoutes(
     let totalRows = 0;
     const fileStats: { file: string; rows: number; error?: string }[] = [];
     const columnNames: string[] = settingsFields.map((f: any) => f.name);
-    const allCols = [...columnNames, '__source_file', '__source_row', '__extracted_at'];
+    const allCols = [...columnNames, '__source_file', '__source_sheet', '__source_row', '__extracted_at'];
     const insertSQL = `INSERT INTO "${tableName}" (${allCols.map(c => `"${c}"`).join(', ')}) VALUES (${allCols.map(() => '?').join(', ')})`;
     const extractedAt = new Date().toISOString();
     const matchedFiles = new Set<string>();
@@ -264,7 +327,8 @@ export function registerETLRoutes(
               const fieldType = settingsFields.find((f: any) => f.name === col)?.type ?? 'string';
               return coerceValue(raw, fieldType);
             });
-            vals.push(file, (chunk.locator.detail.chunkStart as number ?? 0) + ri, extractedAt);
+            // __source_row = 真实文件行号(1基):chunkStart 是 aoa 的 0 基索引(已含表头偏移),+1 转成 Excel 行号
+            vals.push(file, src.sheetName ?? String(src.sheetIndex ?? 0), (chunk.locator.detail.chunkStart as number ?? 0) + ri + 1, extractedAt);
             await folderDb.run(insertSQL, vals);
             totalRows++;
             fileRows++;
