@@ -1,6 +1,7 @@
 // onworking/src/renderer/components/ResizableSidebar.tsx
 // 可拖动调宽的侧边栏 — 右侧把手拖动改变宽度,容器 min/max 限制
 import React, { useRef, useState } from 'react';
+import { t } from '../../common/i18n';
 
 interface ResizableSidebarProps {
   children: React.ReactNode;
@@ -40,7 +41,7 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       <div style={{ width, flexShrink: 0, overflow: 'auto', height: '100%', boxSizing: 'border-box', ...contentStyle }}>
         {children}
       </div>
-      <div onMouseDown={startDrag} title="拖动调整宽度"
+      <div onMouseDown={startDrag} title={t('resizableSidebar.dragToResize')}
         style={{ width: 5, flexShrink: 0, cursor: 'col-resize', background: 'transparent' }} />
     </>
   );

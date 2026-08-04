@@ -1,4 +1,5 @@
 import type { TypeGuess } from './TableConfig';
+import { t } from '../../common/i18n';
 
 export interface BigTableField {
   name: string;
@@ -111,10 +112,10 @@ export class BigTable {
   /** Validate BigTable settings before save. */
   validate(): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
-    if (!this.tableName.trim()) errors.push('表名不能为空');
-    if (this.fields.length === 0) errors.push('请至少添加一个字段');
+    if (!this.tableName.trim()) errors.push(t('bigTableSettings.nameRequired'));
+    if (this.fields.length === 0) errors.push(t('bigTableSettings.atLeastOneField'));
     if (!this.autoIncrementId && this.primaryKeyFields.length === 0) {
-      errors.push('请选择至少一个主键字段，或开启自增主键');
+      errors.push(t('bigTableSettings.selectPrimaryKey'));
     }
     return { valid: errors.length === 0, errors };
   }

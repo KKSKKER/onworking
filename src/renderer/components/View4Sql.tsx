@@ -119,7 +119,7 @@ export const View4Sql: React.FC = () => {
       for (const table of d.tables) {
         lines.push('', t('view4.tableLabel', { table: table.table }), t('view4.fieldLabel'));
         for (const c of table.columns) {
-          lines.push(t('view4.fieldDetail', { name: c.name, type: c.type, pkSuffix: c.pk ? ', 主键' : '' }));
+          lines.push(t('view4.fieldDetail', { name: c.name, type: c.type, pkSuffix: c.pk ? t('view4.pkSuffix') : '' }));
         }
       }
       await navigator.clipboard.writeText(lines.join('\n'));

@@ -61,7 +61,7 @@ export const DataTable: React.FC<DataTableProps> = ({ columns, rows }) => {
               <div style={{ position: 'relative', padding: '4px 12px 4px 8px', minHeight: 20 }}>
                 {c}
                 <div onMouseDown={e => startResize(c, e)}
-                  title="拖动调整列宽"
+                  title={t('dataTable.dragToResize')}
                   style={{ position: 'absolute', top: 0, right: 0, width: 6, height: '100%',
                     cursor: 'col-resize', zIndex: 1 }} />
               </div>

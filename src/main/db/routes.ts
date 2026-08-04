@@ -30,7 +30,7 @@ export function registerDBRoutes(router: APIRouter, db: DBConnection): void {
     if (!outPath) {
       const win = BrowserWindow.getAllWindows()[0];
       const opts = {
-        title: '导出 CSV',
+        title: t('dialog.exportCsvTitle'),
         defaultPath: '查询结果.csv',
         filters: [{ name: 'CSV', extensions: ['csv'] }],
       };

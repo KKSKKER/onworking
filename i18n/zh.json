@@ -48,7 +48,8 @@
   "dialog": {
     "openWorkspaceTitle": "打开工作区",
     "confirmDefault": "确认",
-    "cancelDefault": "取消"
+    "cancelDefault": "取消",
+    "exportCsvTitle": "导出 CSV"
   },
   "topBar": {
     "view1": "View1 配置",
@@ -74,6 +75,12 @@
     "noMatch": "无匹配字段",
     "chooseField": "选择字段..."
   },
+  "dataTable": {
+    "dragToResize": "拖动调整列宽"
+  },
+  "resizableSidebar": {
+    "dragToResize": "拖动调整宽度"
+  },
   "pagination": {
     "pageInfo": "第 {current} / {total} 页",
     "prev": "上一页",
@@ -92,7 +99,10 @@
     "typeDate": "日期",
     "newFieldPlaceholder": "新字段名",
     "addField": "+ 新增字段",
-    "save": "💾 保存设置"
+    "save": "💾 保存设置",
+    "nameRequired": "表名不能为空",
+    "atLeastOneField": "请至少添加一个字段",
+    "selectPrimaryKey": "请选择至少一个主键字段，或开启自增主键"
   },
   "folderTree": {
     "bigTables": "📁 大表",
@@ -158,6 +168,7 @@
     "tableLabel": "表：{table}",
     "fieldLabel": "字段：",
     "fieldDetail": "• {name} ({type}{pkSuffix})",
+    "pkSuffix": ", 主键",
     "copiedStructure": "已复制 {count} 张表的表结构到剪贴板",
     "copyFailed": "复制失败：{message}",
     "tableTitle": "🗂 表",
@@ -207,6 +218,7 @@
     "workspaceNotFound": "Workspace not found: {path}",
     "infoRequiresWorkspace": "workspace.info requires active workspace context",
     "noActiveWorkspace": "没有活动工作区",
+    "openWorkspaceFailed": "打开工作区失败",
     "cannotDeleteRoot": "不能删除工作区根目录",
     "targetOutsideWorkspace": "目标路径不在工作区范围内: {target}",
     "invalidNewName": "新文件名不合法",

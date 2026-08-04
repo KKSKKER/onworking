@@ -10,11 +10,13 @@ interface TopBarProps {
   onViewChange: (view: ViewId) => void;
 }
 
-const TABS: { id: ViewId; label: string }[] = [
-  { id: 'config', label: t('topBar.view1') },
-  { id: 'preview', label: t('topBar.view2') },
-  { id: 'results', label: t('topBar.view3') },
-  { id: 'sql', label: t('topBar.view4') },
+// 存 key 而非渲染好的词:ESM 下本模块体先于 main.tsx 的 setCatalog(zh) 执行,
+// 模块顶层调 t() 会拿不到目录而渲染成裸 key。改成渲染时取词,规避时序问题。
+const TABS: { id: ViewId; labelKey: string }[] = [
+  { id: 'config', labelKey: 'topBar.view1' },
+  { id: 'preview', labelKey: 'topBar.view2' },
+  { id: 'results', labelKey: 'topBar.view3' },
+  { id: 'sql', labelKey: 'topBar.view4' },
 ];
 
 export const TopBar: React.FC<TopBarProps> = ({ workspaceName, activeView, onViewChange }) => (
@@ -29,7 +31,7 @@ export const TopBar: React.FC<TopBarProps> = ({ workspaceName, activeView, onVie
             background: activeView === tab.id ? '#007acc' : 'transparent',
             color: activeView === tab.id ? 'white' : '#333',
             borderRadius: 3, fontSize: 12, fontWeight: activeView === tab.id ? 600 : 400 }}>
-          {tab.label}
+          {t(tab.labelKey)}
         </button>
       ))}
     </div>

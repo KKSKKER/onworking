@@ -1,4 +1,6 @@
 // 打开工作区唯一流程:开始页面按钮、File 菜单广播、最近工作区三入口共用。
+import { t } from '../../common/i18n';
+
 export interface WorkspaceInfo {
   root: string;
   sourceDir: string;
@@ -17,6 +19,6 @@ export async function openWorkspace(): Promise<WorkspaceInfo | null> {
 /** 按已知路径打开/新建(打开或新建由后端 workspace.launch 判定)。 */
 export async function openWorkspacePath(rootPath: string): Promise<WorkspaceInfo> {
   const res = await window.onworking.api.call('workspace.launch', { rootPath });
-  if (!res.success) throw new Error(res.error ?? '打开工作区失败');
+  if (!res.success) throw new Error(res.error ?? t('error.openWorkspaceFailed'));
   return res.data as WorkspaceInfo;
 }
