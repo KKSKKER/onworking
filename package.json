@@ -12,8 +12,7 @@
     "build": "npm run build:main && npm run build:renderer",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder",
-    "test": "vitest run"
+    "dist": "npm run build && electron-builder"
   },
   "dependencies": {
     "@univerjs/core": "^0.25.1",
