@@ -14,16 +14,29 @@ import { registerUI } from './ui/ipc';
 import { buildApplicationMenu } from './menu';
 import { setCatalog } from '../common/i18n';
 
-// 装载界面文案(菜单/对话框/错误消息)。dev: __dirname=dist/main/main → 项目根;打包后 → resources/app。
-// 语言由根目录 language.json 决定(language: "zh" | "en"),缺失/非法默认 zh;改它重启即切换。
-// 注:__dirname 是 dist/main/main,需 ../../../ 到项目根/应用根。
-let appLang = 'zh';
-try {
-  // 去掉可能的 UTF-8 BOM(Windows 编辑器/Set-Content 会写入 ﻿),否则 JSON.parse 抛错
-  const raw = fs.readFileSync(path.join(__dirname, '../../../language.json'), 'utf8').replace(/^﻿/, '');
-  const langCfg = JSON.parse(raw) as { language?: string };
-  appLang = langCfg.language === 'en' ? 'en' : 'zh';
-} catch { /* language.json 缺失/损坏,默认 zh */ }
+// 装载界面文案(菜单/对话框/错误消息)。
+// 语言解析:打包后优先读用户数据目录 %APPDATA%/onworking/language.json(可写,用户在此切换);
+// 否则读应用资源 language.json(dev=项目根,打包后=resources/app 只读默认,electron-builder files 已含)。
+// 内容 {"language":"zh"} 或 {"language":"en"},缺失/损坏默认 zh;改文件重启即切换。
+function resolveLanguage(): string {
+  const candidates = [
+    app.isPackaged ? path.join(app.getPath('userData'), 'language.json') : '',
+    path.join(__dirname, '../../../language.json'),
+  ];
+  for (const p of candidates) {
+    if (!p) continue;
+    try {
+      if (!fs.existsSync(p)) continue;
+      // 去掉可能的 UTF-8 BOM(Windows 编辑器/Set-Content 会写入),否则 JSON.parse 抛错
+      const raw = fs.readFileSync(p, 'utf8').replace(/^﻿/, '');
+      const cfg = JSON.parse(raw) as { language?: string };
+      return cfg.language === 'en' ? 'en' : 'zh';
+    } catch { /* 该候选损坏,尝试下一个 */ }
+  }
+  return 'zh';
+}
+
+const appLang = resolveLanguage();
 try {
   const raw = fs.readFileSync(path.join(__dirname, `../../../i18n/${appLang}.json`), 'utf8').replace(/^﻿/, '');
   setCatalog(JSON.parse(raw));

@@ -6,6 +6,7 @@ files:
   - dist/**/*
   - package.json
   - i18n/**/*
+  - language.json
 win:
   icon: build/icon.png
   target: nsis
