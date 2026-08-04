@@ -9,6 +9,7 @@ import type {
 } from '../../common/types/etl-types';
 import type { FieldTransform } from '../../common/types/transforms';
 import { TRANSFORM_ORDER } from '../../common/types/transforms';
+import { t as tr } from '../../common/i18n';
 
 // --- 排序 ---
 
@@ -106,7 +107,7 @@ function applyFieldTransforms(
         if (mapped) { current = mapped; currentType = 'string'; }
         else if (t.unmappedStrategy === 'null') { current = null; currentType = 'null'; }
         else if (t.unmappedStrategy === 'error') {
-          throw new Error(`Enum value "${s}" not found in mapping and unmappedStrategy is "error"`);
+          throw new Error(tr('error.enumNotMapped', { value: s }));
         }
         break;
       }
@@ -128,7 +129,7 @@ function applyFieldTransforms(
       case 'extract':
       case 'split_by_sign':
       case 'derive': {
-        throw new Error(`Transform kind "${t.kind}" is not yet implemented (Phase 2)`);
+        throw new Error(tr('error.transformNotImplemented', { kind: t.kind }));
       }
     }
   }

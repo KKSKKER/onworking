@@ -12,6 +12,16 @@ import { registerWorkspaceRoutes, WorkspaceManager, setActiveRoot } from './work
 import type { WorkspaceInfo } from './workspace/manager';
 import { registerUI } from './ui/ipc';
 import { buildApplicationMenu } from './menu';
+import { setCatalog } from '../common/i18n';
+
+// 装载界面文案(菜单/对话框/错误消息)。dev: __dirname=dist/main/main → 项目根 i18n/zh.json;
+// 打包后: resources/app/i18n/zh.json(electron-builder files 已含 i18n/,见 Task 8)。
+// 注:__dirname 是 dist/main/main,需 ../.. 到 dist、再 .. 到项目根/应用根,故用 ../../../。
+try {
+  setCatalog(JSON.parse(fs.readFileSync(path.join(__dirname, '../../../i18n/zh.json'), 'utf8')));
+} catch (e) {
+  console.warn('[i18n] 加载语言文件失败:', e);
+}
 
 let mainWindow: BrowserWindow | null = null;
 let db: DBConnection | null = null;

@@ -7,6 +7,7 @@ import type { APIRouter } from '../api/router';
 import type { DBConnection } from '../db/connection';
 import { EntityQueryEngine } from './query-engine';
 import { getEntity, listEntities, registerEntity } from './entity-registry';
+import { t } from '../../common/i18n';
 
 export function registerEntityRoutes(router: APIRouter, db: DBConnection): void {
   const queryEngine = new EntityQueryEngine(db);
@@ -14,7 +15,7 @@ export function registerEntityRoutes(router: APIRouter, db: DBConnection): void 
   router.register('entity.query', async (params) => {
     const { name, filters } = params as { name: string; filters?: Record<string, string> };
     const entity = getEntity(name);
-    if (!entity) throw new Error(`Entity not found: ${name}`);
+    if (!entity) throw new Error(t('error.entityNotFound', { name }));
     return queryEngine.execute(entity, filters);
   }, { description: 'Query entity data' });
 

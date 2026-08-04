@@ -5,6 +5,7 @@ import type { APIRouter } from '../api/router';
 import { RuleStore, autoGenerateRule, ColumnProfile } from './rule-store';
 import { ExcelParser } from '../plugins/onw-excel/parser';
 import { defaultParseConfig } from '../../common/types/parse-config';
+import { t } from '../../common/i18n';
 
 export function registerRuleRoutes(router: APIRouter, rulesDir: string): void {
   const store = new RuleStore(rulesDir);
@@ -43,13 +44,13 @@ export function registerRuleRoutes(router: APIRouter, rulesDir: string): void {
 
   router.register('rule.autoGenerate', async (params) => {
     const { file, sheetIndex, headerRow, save, rulesDir: rd } = params as { file: string; sheetIndex?: number; headerRow?: number; save?: boolean; rulesDir?: string };
-    if (!file) throw new Error('rule.autoGenerate requires a "file" parameter');
+    if (!file) throw new Error(t('error.autoGenerateNeedsFile'));
 
     const parser = new ExcelParser();
     const structure = parser.scan(file);
     const fileName = file.replace(/^.*[\\/]/, '');
 
-    if (structure.sheets.length === 0) throw new Error('No sheets found');
+    if (structure.sheets.length === 0) throw new Error(t('error.noSheetsFound'));
 
     const si = sheetIndex ?? 0;
     const hr = headerRow ?? 1;

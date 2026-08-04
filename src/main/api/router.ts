@@ -1,3 +1,5 @@
+import { t } from '../../common/i18n';
+
 type CommandHandler = (params?: Record<string, unknown>) => Promise<unknown>;
 
 interface CommandEntry {
@@ -21,7 +23,7 @@ export class APIRouter {
   async call(command: string, params?: Record<string, unknown>): Promise<unknown> {
     const entry = this.commands.get(command);
     if (!entry) {
-      throw new Error(`Unknown command: ${command}`);
+      throw new Error(t('error.unknownCommand', { command }));
     }
     return entry.handler(params);
   }

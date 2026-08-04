@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { assertInsideRoot } from './guard';
 import { RuleStore } from '../rules/rule-store';
 import { rewriteRulePatterns } from '../rules/pattern-rewrite';
+import { t } from '../../common/i18n';
 
 export function deleteFileWithinRoot(root: string, targetPath: string): void {
   fs.rmSync(assertInsideRoot(root, targetPath), { force: true });
@@ -25,12 +26,12 @@ export function renameSourceFileWithinRoot(
 ): { newPath: string; rulesUpdated: number } {
   const oldAbs = assertInsideRoot(root, oldPath);
   if (!newName || newName.includes('/') || newName.includes('\\') || newName === '.' || newName === '..') {
-    throw new Error('新文件名不合法');
+    throw new Error(t('error.invalidNewName'));
   }
   const oldBasename = path.basename(oldAbs);
   if (oldBasename === newName) return { newPath: oldAbs, rulesUpdated: 0 };
   const newPath = path.join(path.dirname(oldAbs), newName);
-  if (fs.existsSync(newPath)) throw new Error(`已存在同名文件: ${newName}`);
+  if (fs.existsSync(newPath)) throw new Error(t('error.nameAlreadyExists', { name: newName }));
   fs.renameSync(oldAbs, newPath);
 
   let rulesUpdated = 0;

@@ -10,6 +10,7 @@ import { ruleToParseConfigs } from '../rules/rule-compiler';
 import { TransformEngine } from './transform-engine';
 import { validate } from './validator';
 import { insert } from './inserter';
+import { t } from '../../common/i18n';
 
 export interface ETLProgress {
   stage: 'scan' | 'parse' | 'transform' | 'validate' | 'insert';
@@ -65,7 +66,7 @@ export class ETLPipeline {
     }
 
     if (resolvedFiles.length === 0) {
-      throw new Error(`No files matched rule "${rule.name}" in ${this.sourceDir} or workspace root`);
+      throw new Error(t('error.noFilesMatched', { rule: rule.name, sourceDir: this.sourceDir }));
     }
 
     // Stage 2: Parse — use registered parsers
@@ -77,7 +78,7 @@ export class ETLPipeline {
       const cfg = parseConfigs[i];
       const parser = resolveParser(cfg.filePath);
       if (!parser) {
-        throw new Error(`No parser registered for file extension: ${cfg.filePath}`);
+        throw new Error(t('error.noParserForExt', { ext: cfg.filePath }));
       }
       const chunks = parser.parse(cfg.filePath, cfg);
       parsedChunks.push(...chunks);
@@ -98,7 +99,7 @@ export class ETLPipeline {
     onProgress?.({ stage: 'insert', ruleName: rule.name, filesProcessed: transformedChunks.length, totalFiles: transformedChunks.length, percentComplete: 80 });
     const db = this.db;
     if (!db) {
-      throw new Error('ETLPipeline: no DBConnection provided');
+      throw new Error(t('error.noDbConnection'));
     }
     const result = await insert(transformedChunks, rule, validationReport, db);
 

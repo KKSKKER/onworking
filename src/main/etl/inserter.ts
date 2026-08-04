@@ -5,6 +5,7 @@
 
 import type { TransformedChunk, ValidationReport, InsertResult, RuleDefinition, RowLineage } from '../../common/types/etl-types';
 import type { DBConnection } from '../db/connection';
+import { t } from '../../common/i18n';
 
 export async function insert(
   chunks: TransformedChunk[],
@@ -21,7 +22,7 @@ export async function insert(
       .toLowerCase() || f.outputName);
 
   if (columns.length === 0) {
-    throw new Error(`Rule "${rule.name}" has no included fields`);
+    throw new Error(t('error.noIncludedFields', { rule: rule.name }));
   }
 
   const typeMap: Record<string, string> = {

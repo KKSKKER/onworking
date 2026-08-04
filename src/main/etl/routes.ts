@@ -12,6 +12,7 @@ import { matchGlob } from '../../common/utils/glob';
 import type { RuleDefinition } from '../../common/types/etl-types';
 import { deleteFileWithinRoot, copyFileWithinRoot, renameSourceFileWithinRoot, collectRulesDirs } from '../fs/file-ops';
 import { normalizeTableName } from './table-name';
+import { t } from '../../common/i18n';
 
 export function registerETLRoutes(
   router: APIRouter,
@@ -100,7 +101,7 @@ export function registerETLRoutes(
   router.register('etl.execute', async (params) => {
     const { ruleName } = params as { ruleName: string };
     const rule = ruleStore.load(ruleName);
-    if (!rule) throw new Error(`Rule not found: ${ruleName}`);
+    if (!rule) throw new Error(t('error.ruleNotFound', { name: ruleName }));
     const result = await pipeline.execute(rule, {
       onProgress: (progress) => { router.emit('etl:progress', progress); },
     });
@@ -120,7 +121,7 @@ export function registerETLRoutes(
 
   router.register('etl.buildMasterTable', async () => {
     const rootDir = workspace.root;
-    if (!fs.existsSync(rootDir)) throw new Error('Workspace root not found');
+    if (!fs.existsSync(rootDir)) throw new Error(t('error.workspaceRootNotFound'));
 
     // 扫描大表文件夹:含 settings.json 且含 .onworking/db/onworking.db 的目录
     const bigTableFolders: string[] = [];
@@ -207,12 +208,12 @@ export function registerETLRoutes(
     const dbDir = pathMod.join(folderPath, '.onworking', 'db');
     const dbPath = pathMod.join(dbDir, 'onworking.db');
 
-    if (!fs.existsSync(sourceDir)) throw new Error('source/ not found');
+    if (!fs.existsSync(sourceDir)) throw new Error(t('error.sourceDirNotFound'));
 
     // 1. Read settings.json
     const settings = JSON.parse(fs.readFileSync(pathMod.join(folderPath, 'settings.json'), 'utf-8'));
     const settingsFields = (settings.fields ?? []).filter((f: any) => f && f.name);
-    if (settingsFields.length === 0) throw new Error('No fields in settings.json');
+    if (settingsFields.length === 0) throw new Error(t('error.noFieldsInSettings'));
 
     const autoIncrementId = !!settings.autoIncrementId;
     const tableName = normalizeTableName(settings.tableName || settings.name || pathMod.basename(folderPath));
@@ -306,7 +307,7 @@ export function registerETLRoutes(
         }
         for (const f of includedFields) {
           if (!excelHeaders.has(f.sourceHeader!)) {
-            throw new Error(`列名 "${f.sourceHeader!}" 在 "${fileName}" (sheet ${src.sheetIndex ?? 0}) 中不存在。可用: ${[...excelHeaders].join(', ')}`);
+            throw new Error(t('error.headerNotFound', { header: f.sourceHeader!, file: fileName, sheet: src.sheetIndex ?? 0, available: [...excelHeaders].join(', ') }));
           }
         }
 

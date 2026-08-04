@@ -7,6 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'js-yaml';
 import type { RuleDefinition, FieldDefinition, RuleSource } from '../../common/types/etl-types';
+import { t } from '../../common/i18n';
 
 export class RuleStore {
   constructor(private rulesDir: string) {}
@@ -21,7 +22,7 @@ export class RuleStore {
     this.ensureDir();
     const filePath = path.join(this.rulesDir, `${name}.yaml`);
     if (!fs.existsSync(filePath)) {
-      throw new Error(`Rule not found: ${name} (${filePath})`);
+      throw new Error(t('error.ruleNotFoundInFile', { name, file: filePath }));
     }
     const raw = fs.readFileSync(filePath, 'utf-8');
     return yaml.load(raw) as RuleDefinition;
@@ -92,7 +93,7 @@ export function autoGenerateRule(
 
   const primarySheet = sheets[sheetIndex] ?? sheets[0];
   if (!primarySheet) {
-    throw new Error('No sheets available to auto-generate rule');
+    throw new Error(t('error.noSheetsToAutoGenerate'));
   }
 
   // Use filename-based pattern so the rule only matches its source file

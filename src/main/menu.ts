@@ -3,6 +3,7 @@ import type { BrowserWindow, MenuItemConstructorOptions } from 'electron';
 import * as path from 'node:path';
 import { shell } from 'electron';
 import { WorkspaceManager, getActiveRoot } from './workspace/manager';
+import { t } from '../common/i18n';
 
 /**
  * 自选极简菜单(文件/编辑/帮助),替换 Electron 默认菜单。
@@ -20,37 +21,37 @@ export function buildApplicationMenu(getWin: () => BrowserWindow | null): void {
 
   const template: MenuItemConstructorOptions[] = [
     {
-      label: '文件',
+      label: t('menu.file'),
       submenu: [
-        { label: '打开工作区…', accelerator: 'CmdOrCtrl+O', click: () => send() },
+        { label: t('menu.openWorkspace'), accelerator: 'CmdOrCtrl+O', click: () => send() },
         {
-          label: '最近工作区',
+          label: t('menu.recentWorkspaces'),
           submenu: recent.length > 0
             ? recent.map(r => ({ label: `${r.name} — ${r.rootPath}`, click: () => send({ rootPath: r.rootPath }) }))
-            : [{ label: '(无)', enabled: false }],
+            : [{ label: t('menu.noRecent'), enabled: false }],
         },
         { type: 'separator' },
-        { role: 'quit', label: '退出' },
+        { role: 'quit', label: t('menu.quit') },
       ],
     },
     {
-      label: '编辑',
+      label: t('menu.edit'),
       submenu: [
-        { role: 'undo', label: '撤销' },
-        { role: 'redo', label: '重做' },
+        { role: 'undo', label: t('menu.undo') },
+        { role: 'redo', label: t('menu.redo') },
         { type: 'separator' },
-        { role: 'cut', label: '剪切' },
-        { role: 'copy', label: '复制' },
-        { role: 'paste', label: '粘贴' },
-        { role: 'selectAll', label: '全选' },
+        { role: 'cut', label: t('menu.cut') },
+        { role: 'copy', label: t('menu.copy') },
+        { role: 'paste', label: t('menu.paste') },
+        { role: 'selectAll', label: t('menu.selectAll') },
       ],
     },
     {
-      label: '帮助',
+      label: t('menu.help'),
       submenu: [
-        { role: 'about', label: '关于' },
+        { role: 'about', label: t('menu.about') },
         {
-          label: '打开数据目录',
+          label: t('menu.openDataDir'),
           enabled: !!activeRoot,
           click: () => { if (activeRoot) shell.openPath(path.join(activeRoot, 'source')); },
         },

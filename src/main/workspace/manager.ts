@@ -7,6 +7,7 @@ import type { DBConnection } from '../db/connection';
 import { assertInsideRoot } from '../fs/guard';
 import { normalizeTableName } from '../etl/table-name';
 import { resolveLaunchMode } from './launch';
+import { t } from '../../common/i18n';
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'workspaces.json');
 
@@ -70,7 +71,7 @@ export class WorkspaceManager {
   }
 
   static open(rootPath: string): Workspace {
-    if (!fs.existsSync(rootPath)) throw new Error(`Workspace not found: ${rootPath}`);
+    if (!fs.existsSync(rootPath)) throw new Error(t('error.workspaceNotFound', { path: rootPath }));
     setActiveRoot(rootPath);
     const ws = new Workspace(rootPath);
     WorkspaceManager._addRecent({ rootPath, name: path.basename(rootPath), openedAt: new Date().toISOString() });
@@ -117,7 +118,7 @@ export function registerWorkspaceRoutes(
   }, { description: 'Open an existing workspace' });
 
   router.register('workspace.info', async () => {
-    return { error: 'workspace.info requires active workspace context' };
+    return { error: t('error.infoRequiresWorkspace') };
   }, { description: 'Get current workspace info' });
 
   router.register('workspace.launch', async (params) => {
@@ -134,9 +135,9 @@ export function registerWorkspaceRoutes(
   router.register('workspace.deleteFolder', async (params) => {
     const { path: folderPath } = params as { path: string };
     const root = getActiveRoot();
-    if (!root) throw new Error('没有活动工作区');
+    if (!root) throw new Error(t('error.noActiveWorkspace'));
     const abs = assertInsideRoot(root, folderPath);
-    if (path.resolve(abs) === path.resolve(root)) throw new Error('不能删除工作区根目录');
+    if (path.resolve(abs) === path.resolve(root)) throw new Error(t('error.cannotDeleteRoot'));
     const settingsPath = path.join(abs, 'settings.json');
     if (fs.existsSync(settingsPath)) {
       try {

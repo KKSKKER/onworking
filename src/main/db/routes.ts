@@ -7,6 +7,7 @@ import { dialog, BrowserWindow } from 'electron';
 import * as fs from 'node:fs';
 import type { APIRouter } from '../api/router';
 import type { DBConnection } from './connection';
+import { t } from '../../common/i18n';
 
 export function registerDBRoutes(router: APIRouter, db: DBConnection): void {
   router.register('db.query', async (params) => {
@@ -23,7 +24,7 @@ export function registerDBRoutes(router: APIRouter, db: DBConnection): void {
   // 也不经 IPC 搬大结果集。未给 filePath 时弹系统保存对话框。
   router.register('db.exportCsv', async (params) => {
     const { sql, filePath } = params as { sql?: string; filePath?: string };
-    if (!sql || !sql.trim()) throw new Error('db.exportCsv requires "sql"');
+    if (!sql || !sql.trim()) throw new Error(t('error.exportCsvNeedsSql'));
 
     let outPath = filePath;
     if (!outPath) {

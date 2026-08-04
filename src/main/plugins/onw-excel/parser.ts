@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import type { ParseConfig } from '../../../common/types/parse-config';
 import type { ParsedChunk, CellData, ChunkLocator } from '../../../common/types/etl-types';
 import type { SourceStructure, SourceParserDefinition } from './index';
+import { t } from '../../../common/i18n';
 
 export class ExcelParser implements SourceParserDefinition {
   name = 'onw-excel';
@@ -43,7 +44,7 @@ export class ExcelParser implements SourceParserDefinition {
     const sheetName = config.sheetName ?? wb.SheetNames[config.sheetIndex ?? 0];
     const ws = wb.Sheets[sheetName];
     if (!ws) {
-      throw new Error(`Sheet "${sheetName}" not found in ${file}`);
+      throw new Error(t('error.sheetNotFound', { sheet: sheetName, file }));
     }
 
     // Convert to array of arrays (raw values, no header parsing)
