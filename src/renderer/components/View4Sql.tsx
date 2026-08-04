@@ -30,6 +30,7 @@ export const View4Sql: React.FC = () => {
   const [writeInfo, setWriteInfo] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportInfo, setExportInfo] = useState('');
+  const [copyInfo, setCopyInfo] = useState('');
   const [page, setPage] = useState(0);
 
   const loadTables = (): void => {
@@ -103,6 +104,30 @@ export const View4Sql: React.FC = () => {
     setExporting(false);
   };
 
+  // 导出整个数据库的结构(表名+列头) → 格式化为 AI 友好文本 → 复制到剪贴板
+  const copyStructure = async (): Promise<void> => {
+    setCopyInfo('');
+    setError('');
+    try {
+      const res = await window.onworking.api.call('db.getStructure');
+      if (!res.success) { setError(res.error ?? '获取表结构失败'); return; }
+      const d = (res.data ?? {}) as {
+        tables: { table: string; columns: { name: string; type: string; pk: boolean }[] }[];
+      };
+      const lines: string[] = ['数据库表结构：'];
+      for (const t of d.tables) {
+        lines.push('', `表：${t.table}`, '字段：');
+        for (const c of t.columns) {
+          lines.push(`• ${c.name} (${c.type}${c.pk ? ', 主键' : ''})`);
+        }
+      }
+      await navigator.clipboard.writeText(lines.join('\n'));
+      setCopyInfo(`已复制 ${d.tables.length} 张表的表结构到剪贴板`);
+    } catch (e) {
+      setError(`复制失败：${(e as Error).message}`);
+    }
+  };
+
   const displayedRows = rows ? rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) : [];
 
   return (
@@ -143,6 +168,9 @@ export const View4Sql: React.FC = () => {
             style={{ width: '100%', height: 80, fontFamily: 'Consolas, monospace', fontSize: 12,
               padding: 8, boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: 3, resize: 'vertical' }}
           />
+          <div style={{ color: '#999', fontSize: 11, marginTop: 4 }}>
+            💡 不会写 SQL？点「复制表结构」，把表结构贴给 AI（如 ChatGPT / DeepSeek）让它生成，再贴回此处执行。
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
             <button onClick={runQuery} disabled={running}
               style={{ padding: '5px 16px', background: '#007acc', color: 'white', border: 'none',
@@ -152,8 +180,15 @@ export const View4Sql: React.FC = () => {
             <button onClick={exportCsv} disabled={exporting}
               style={{ padding: '5px 16px', background: '#28a745', color: 'white', border: 'none',
                 borderRadius: 3, cursor: exporting ? 'default' : 'pointer', opacity: exporting ? 0.6 : 1 }}>
-              {exporting ? '导出中...' : '💾 导出 CSV'}
+              {exporting ? '导出中...' : '导出 CSV'}
             </button>
+            <button onClick={copyStructure}
+              style={{ padding: '5px 16px', background: '#6f42c1', color: 'white', border: 'none',
+                borderRadius: 3, cursor: 'pointer' }}
+              title="导出全部表名+列头,格式化为 AI 友好的文本复制到剪贴板">
+              复制表结构
+            </button>
+            {copyInfo && <span style={{ color: '#2a7' }}>{copyInfo}</span>}
             {exportInfo && <span style={{ color: '#2a7' }}>{exportInfo}</span>}
             {rows !== null && (
               <span style={{ color: '#666' }}>{rows.length} 行</span>
