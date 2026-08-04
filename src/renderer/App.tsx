@@ -9,11 +9,12 @@ import { View4Sql } from './components/View4Sql';
 import { useTableConfigStore } from './state/TableConfigStore';
 import { BigTableStoreProvider } from './state/BigTableStore';
 import { openWorkspace, openWorkspacePath } from './api/openWorkspace';
+import { t } from '../common/i18n';
 
 export const App: React.FC = () => {
   const [workspace, setWorkspace] = useState<Record<string, unknown> | null>(null);
   const [activeView, setActiveView] = useState<ViewId>('config');
-  const [status, setStatus] = useState('就绪');
+  const [status, setStatus] = useState(t('app.statusReady'));
   const [fileCount, setFileCount] = useState(0);
   const [lastETL, setLastETL] = useState('');
   const [etlResult, setETLResult] = useState<Record<string, unknown>>();

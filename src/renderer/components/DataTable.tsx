@@ -1,6 +1,7 @@
 // onworking/src/renderer/components/DataTable.tsx
 // 可复用数据表格 — 列头可拖动调整列宽(tableLayout fixed,不再随内容跳)
 import React, { useRef, useState } from 'react';
+import { t } from '../../common/i18n';
 
 interface DataTableProps {
   columns: string[];
@@ -43,7 +44,7 @@ export const DataTable: React.FC<DataTableProps> = ({ columns, rows }) => {
   };
 
   if (rows.length === 0) {
-    return <div style={{ color: '#999', padding: 20, textAlign: 'center' }}>暂无数据</div>;
+    return <div style={{ color: '#999', padding: 20, textAlign: 'center' }}>{t('common.noData')}</div>;
   }
 
   // 表格宽度显式 = 各列宽度之和:拖一列只改这一列,其他列不被重新分配

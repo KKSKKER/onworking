@@ -1,5 +1,6 @@
 // onworking/src/renderer/components/TopBar.tsx
 import React from 'react';
+import { t } from '../../common/i18n';
 
 export type ViewId = 'config' | 'preview' | 'results' | 'sql';
 
@@ -10,10 +11,10 @@ interface TopBarProps {
 }
 
 const TABS: { id: ViewId; label: string }[] = [
-  { id: 'config', label: 'View1 配置' },
-  { id: 'preview', label: 'View2 预览' },
-  { id: 'results', label: 'View3 结果' },
-  { id: 'sql', label: 'View4 SQL' },
+  { id: 'config', label: t('topBar.view1') },
+  { id: 'preview', label: t('topBar.view2') },
+  { id: 'results', label: t('topBar.view3') },
+  { id: 'sql', label: t('topBar.view4') },
 ];
 
 export const TopBar: React.FC<TopBarProps> = ({ workspaceName, activeView, onViewChange }) => (

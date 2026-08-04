@@ -1,6 +1,7 @@
 // onworking/src/renderer/components/WorkspaceStart.tsx
 import React, { useEffect, useState } from 'react';
 import { openWorkspace, openWorkspacePath } from '../api/openWorkspace';
+import { t } from '../../common/i18n';
 
 interface WorkspaceMeta { rootPath: string; name: string; openedAt: string; }
 interface WorkspaceStartProps { onWorkspaceReady: (info: Record<string, unknown>) => void; }
@@ -35,18 +36,18 @@ export const WorkspaceStart: React.FC<WorkspaceStartProps> = ({ onWorkspaceReady
     setLoading(false);
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>{t('common.loading')}</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       height: '100vh', fontFamily: 'system-ui, sans-serif', background: '#f5f5f5' }}>
       <h1 style={{ marginBottom: 8 }}>OnWorking</h1>
-      <p style={{ color: '#666', marginBottom: 32 }}>AI 数据工作的透明执行框架</p>
+      <p style={{ color: '#666', marginBottom: 32 }}>{t('workspaceStart.brandTagline')}</p>
       {error && <div style={{ color: 'red', marginBottom: 16 }}>{error}</div>}
       <div style={{ background: 'white', borderRadius: 8, padding: 24, minWidth: 400,
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <h3 style={{ marginTop: 0 }}>最近工作区</h3>
-        {recent.length === 0 ? <p style={{ color: '#999' }}>暂无工作区</p> : (
+        <h3 style={{ marginTop: 0 }}>{t('workspaceStart.recentWorkspaces')}</h3>
+        {recent.length === 0 ? <p style={{ color: '#999' }}>{t('workspaceStart.noWorkspace')}</p> : (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {recent.map(ws => (
               <li key={ws.rootPath} onClick={() => handleOpenPath(ws.rootPath)}
@@ -60,7 +61,7 @@ export const WorkspaceStart: React.FC<WorkspaceStartProps> = ({ onWorkspaceReady
         )}
         <button onClick={handleOpen} style={{ marginTop: 16, width: '100%', padding: '10px',
           background: '#007acc', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>
-          打开工作区…
+          {t('workspaceStart.openWorkspace')}
         </button>
       </div>
     </div>
