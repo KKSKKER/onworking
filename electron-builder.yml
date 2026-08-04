@@ -5,6 +5,7 @@ directories:
 files:
   - dist/**/*
   - package.json
+  - i18n/**/*
 win:
   icon: build/icon.png
   target: nsis
