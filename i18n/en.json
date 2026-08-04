@@ -1,0 +1,227 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "detecting": "Detecting...",
+    "merging": "Merging...",
+    "building": "Building...",
+    "exporting": "Exporting...",
+    "running": "Running...",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "overwrite": "Overwrite",
+    "choose": "Choose...",
+    "fileExists": "File already exists",
+    "overwritePrompt": "A file with the same name already exists at the target. Overwrite?",
+    "confirmDelete": "Confirm Delete",
+    "deleteFileConfirm": "Are you sure you want to delete this file?",
+    "noData": "No data",
+    "fieldName": "Field name",
+    "mappedField": "Mapped field",
+    "tableName": "Table name:",
+    "type": "Type",
+    "endOfRange": "End",
+    "headerRow": "Header row:",
+    "dataEndRow": "End row:",
+    "mergeIntoTable": "Merge into data table"
+  },
+  "app": {
+    "statusReady": "Ready"
+  },
+  "menu": {
+    "file": "File",
+    "openWorkspace": "Open Workspace…",
+    "recentWorkspaces": "Recent Workspaces",
+    "noRecent": "(None)",
+    "quit": "Quit",
+    "edit": "Edit",
+    "undo": "Undo",
+    "redo": "Redo",
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "selectAll": "Select All",
+    "help": "Help",
+    "about": "About",
+    "openDataDir": "Open Data Directory"
+  },
+  "dialog": {
+    "openWorkspaceTitle": "Open Workspace",
+    "confirmDefault": "Confirm",
+    "cancelDefault": "Cancel",
+    "exportCsvTitle": "Export CSV"
+  },
+  "topBar": {
+    "view1": "View1 Configuration",
+    "view2": "View2 Preview",
+    "view3": "View3 Results",
+    "view4": "View4 SQL"
+  },
+  "statusBar": {
+    "fileCount": "{count} files under source/",
+    "lastEtl": "Last ETL: {time}"
+  },
+  "workspaceStart": {
+    "brandTagline": "A execution framework for AI driven data work",
+    "recentWorkspaces": "Recent Workspaces",
+    "noWorkspace": "No workspace yet",
+    "openWorkspace": "Open Workspace…"
+  },
+  "formulaBar": {
+    "evaluate": "Run",
+    "invalidEntitySyntax": "Invalid ENTITY() syntax"
+  },
+  "searchableSelect": {
+    "noMatch": "No matching fields",
+    "chooseField": "Choose field..."
+  },
+  "dataTable": {
+    "dragToResize": "Drag to resize column width"
+  },
+  "resizableSidebar": {
+    "dragToResize": "Drag to adjust width"
+  },
+  "pagination": {
+    "pageInfo": "Page {current} / {total}",
+    "prev": "Previous",
+    "next": "Next",
+    "totalInfo": "{total} rows total ({pageSize} per page)"
+  },
+  "bigTableSettings": {
+    "title": "Big Table Settings: {folderName}",
+    "autoIncPk": "Auto-increment primary key",
+    "noPkWarning": "⚠ Auto-increment primary key is off and no primary key field is selected — check a primary key or enable auto-increment",
+    "pk": "Primary key",
+    "sort": "Sort",
+    "typeString": "Text",
+    "typeCents": "Amount (cents)",
+    "typeNumber": "Number",
+    "typeDate": "Date",
+    "newFieldPlaceholder": "New field name",
+    "addField": "+ Add field",
+    "save": "💾 Save Settings",
+    "nameRequired": "Table name cannot be empty",
+    "atLeastOneField": "Please add at least one field",
+    "selectPrimaryKey": "Please select at least one primary key field, or enable auto-increment primary key"
+  },
+  "folderTree": {
+    "bigTables": "📁 Big Tables",
+    "folderNamePlaceholder": "Big table name",
+    "confirm": "OK",
+    "empty": "No big tables yet. Click + to create one",
+    "settingsTitle": "Big Table Settings",
+    "deleteFolderConfirm": "Deleting this big table will also delete its data. Continue?"
+  },
+  "fileTree": {
+    "scanning": "Scanning...",
+    "sourceFiles": "📁 Source Files",
+    "empty": "No Excel files under source/"
+  },
+  "ruleList": {
+    "rules": "📋 Rules",
+    "deleteRuleConfirm": "Delete rule {name}?"
+  },
+  "ruleEditor": {
+    "selectFileFirst": "Please select a file on the left first",
+    "sheetsLabel": "Worksheets ({count} total):",
+    "switchSheet": "Switch worksheet",
+    "autoDetect": "Auto-detect fields",
+    "ruleLabel": "Rule: {name}",
+    "selectAllToggle": "Select all / Deselect all",
+    "mapToPlaceholder": "Map to...",
+    "saved": "✅ Saved",
+    "saveRule": "💾 Save Rule",
+    "previewView2": "Preview → View2",
+    "autoDetectHint": "Select a file, then click \"Auto-detect fields\" to begin"
+  },
+  "view2": {
+    "fileLabel": "File: {filePath}",
+    "noFileSelected": "(Not selected — select a file in View1 first)",
+    "loadPreview": "Load Preview",
+    "loadedSummary": "Loaded: rows {first}-{last}, {totalRows} rows, {totalColumns} columns (header row: {headerRow}{endNote})",
+    "endNote": ", end row: {endRow}",
+    "errorPrefix": "Error: {message}",
+    "previewHint": "Click \"Load Preview\" to view file contents",
+    "selectFileInView1": "Please select a file in View1 first"
+  },
+  "view3": {
+    "mergeFolderLabel": "Big table folder:",
+    "mergeGenerate": "Merge & Generate",
+    "buildMaster": "Build Master Table",
+    "rowsImported": "Imported {count} rows",
+    "noRuleSkipped": "· {count} files without rules skipped",
+    "mergeTableLabel": "Merged table:",
+    "exportCsv": "Export CSV",
+    "totalRows": "{count} rows total",
+    "emptyState": "No data yet. Select a folder first, then click \"Merge & Generate\"."
+  },
+  "view4": {
+    "queryFailed": "Query failed",
+    "executeFailed": "Execution failed",
+    "exportFailed": "Export failed",
+    "exportCancelled": "Export cancelled",
+    "affectedRows": "Affected {changes} rows",
+    "lastInsertRowid": ", lastInsertRowid: {rowid}",
+    "exportedRows": "Exported {rowCount} rows → {filePath}",
+    "getStructureFailed": "Failed to get table structure",
+    "dbStructureHeader": "Database table structure:",
+    "tableLabel": "Table: {table}",
+    "fieldLabel": "Fields:",
+    "fieldDetail": "• {name} ({type}{pkSuffix})",
+    "pkSuffix": ", primary key",
+    "copiedStructure": "Copied table structure of {count} tables to clipboard",
+    "copyFailed": "Copy failed: {message}",
+    "tableTitle": "🗂 Tables",
+    "noTables": "No tables",
+    "columnsTitle": "Columns ({count})",
+    "sqlPlaceholder": "SELECT * FROM \"table\" WHERE ...\n(Ctrl+Enter to run)",
+    "sqlHint": "💡 Don't know SQL? Click \"Copy Table Structure\", paste it to an AI (e.g. ChatGPT / DeepSeek) to generate a query, then paste it back here to run.",
+    "run": "▶ Run (Ctrl+Enter)",
+    "exportCsv": "Export CSV",
+    "copyStructureTitle": "Export all table names + column headers as AI-friendly text and copy to clipboard",
+    "copyStructure": "Copy Table Structure",
+    "rowCount": "{count} rows"
+  },
+  "contextMenu": {
+    "openPreview": "Open Preview",
+    "openDataDir": "Open Data Directory",
+    "copySource": "Copy Source File",
+    "pasteSource": "Paste Source File",
+    "rename": "Rename",
+    "deleteFile": "Delete File",
+    "openSettings": "Open Big Table Settings",
+    "mergeFolder": "Merge Folder",
+    "deleteFolder": "Delete Big Table",
+    "editRule": "Edit Rule",
+    "deleteRule": "Delete Rule"
+  },
+  "error": {
+    "unknownCommand": "Unknown command: {command}",
+    "enumNotMapped": "Enum value \"{value}\" not found in mapping and unmappedStrategy is \"error\"",
+    "transformNotImplemented": "Transform kind \"{kind}\" is not yet implemented (Phase 2)",
+    "noIncludedFields": "Rule \"{rule}\" has no included fields",
+    "noFilesMatched": "No files matched rule \"{rule}\" in {sourceDir} or workspace root",
+    "noParserForExt": "No parser registered for file extension: {ext}",
+    "noDbConnection": "ETLPipeline: no DBConnection provided",
+    "ruleNotFound": "Rule not found: {name}",
+    "workspaceRootNotFound": "Workspace root not found",
+    "sourceDirNotFound": "source/ not found",
+    "noFieldsInSettings": "No fields in settings.json",
+    "headerNotFound": "Column \"{header}\" not found in \"{file}\" (sheet {sheet}). Available: {available}",
+    "ruleNotFoundInFile": "Rule not found: {name} ({file})",
+    "noSheetsToAutoGenerate": "No sheets available to auto-generate rule",
+    "autoGenerateNeedsFile": "rule.autoGenerate requires a \"file\" parameter",
+    "noSheetsFound": "No sheets found",
+    "sheetNotFound": "Sheet \"{sheet}\" not found in {file}",
+    "exportCsvNeedsSql": "db.exportCsv requires \"sql\"",
+    "entityNotFound": "Entity not found: {name}",
+    "workspaceNotFound": "Workspace not found: {path}",
+    "infoRequiresWorkspace": "workspace.info requires active workspace context",
+    "noActiveWorkspace": "No active workspace",
+    "openWorkspaceFailed": "Failed to open workspace",
+    "cannotDeleteRoot": "Cannot delete workspace root directory",
+    "targetOutsideWorkspace": "Target path is outside the workspace: {target}",
+    "invalidNewName": "Invalid new file name",
+    "nameAlreadyExists": "A file with the same name already exists: {name}"
+  }
+}

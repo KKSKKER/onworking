@@ -17,6 +17,7 @@ const onworking = {
   api,
   pickFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:pickFolder'),
   showInFolder: (fullPath: string): Promise<void> => ipcRenderer.invoke('shell:showInFolder', fullPath),
+  getLanguage: (): Promise<string> => ipcRenderer.invoke('app:getLanguage'),
   confirm: (opts: { title: string; message: string; okLabel?: string }): Promise<boolean> =>
     ipcRenderer.invoke('dialog:confirm', opts),
   onOpenWorkspace: (cb: (payload?: { rootPath?: string }) => void): (() => void) => {

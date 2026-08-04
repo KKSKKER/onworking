@@ -14,11 +14,19 @@ import { registerUI } from './ui/ipc';
 import { buildApplicationMenu } from './menu';
 import { setCatalog } from '../common/i18n';
 
-// 装载界面文案(菜单/对话框/错误消息)。dev: __dirname=dist/main/main → 项目根 i18n/zh.json;
-// 打包后: resources/app/i18n/zh.json(electron-builder files 已含 i18n/,见 Task 8)。
-// 注:__dirname 是 dist/main/main,需 ../.. 到 dist、再 .. 到项目根/应用根,故用 ../../../。
+// 装载界面文案(菜单/对话框/错误消息)。dev: __dirname=dist/main/main → 项目根;打包后 → resources/app。
+// 语言由根目录 language.json 决定(language: "zh" | "en"),缺失/非法默认 zh;改它重启即切换。
+// 注:__dirname 是 dist/main/main,需 ../../../ 到项目根/应用根。
+let appLang = 'zh';
 try {
-  setCatalog(JSON.parse(fs.readFileSync(path.join(__dirname, '../../../i18n/zh.json'), 'utf8')));
+  // 去掉可能的 UTF-8 BOM(Windows 编辑器/Set-Content 会写入 ﻿),否则 JSON.parse 抛错
+  const raw = fs.readFileSync(path.join(__dirname, '../../../language.json'), 'utf8').replace(/^﻿/, '');
+  const langCfg = JSON.parse(raw) as { language?: string };
+  appLang = langCfg.language === 'en' ? 'en' : 'zh';
+} catch { /* language.json 缺失/损坏,默认 zh */ }
+try {
+  const raw = fs.readFileSync(path.join(__dirname, `../../../i18n/${appLang}.json`), 'utf8').replace(/^﻿/, '');
+  setCatalog(JSON.parse(raw));
 } catch (e) {
   console.warn('[i18n] 加载语言文件失败:', e);
 }
@@ -61,6 +69,7 @@ function serializeBigInt(_key: string, value: unknown): unknown {
 }
 
 function setupIPC(router: APIRouter): void {
+  ipcMain.handle('app:getLanguage', () => appLang);
   ipcMain.handle('api:call', async (_event, command: string, params?: Record<string, unknown>) => {
     try {
       const result = await router.call(command, params);
