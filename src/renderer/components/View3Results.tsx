@@ -20,6 +20,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
+  const [refreshTick, setRefreshTick] = useState(0); // 合并/生成总表后强制重新拉取数据
 
   useEffect(() => {
     window.onworking.api.call('db.getTables').then(res => {
@@ -42,7 +43,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
       }
       setLoading(false);
     });
-  }, [selectedTable, page]);
+  }, [selectedTable, page, refreshTick]);
 
   const [exporting, setExporting] = useState(false);
 
@@ -88,6 +89,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
         setTables(allTables);
         if (allTables.length > 0) { setSelectedTable(allTables[0]); setPage(0); }
       }
+      setRefreshTick(t => t + 1); // 强制重载当前表数据
     }
     setMerging(false);
   };
@@ -104,6 +106,7 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
         setTables(allTables);
         if (allTables.length > 0) { setSelectedTable(allTables[0]); setPage(0); }
       }
+      setRefreshTick(t => t + 1); // 强制重载当前表数据
     }
     setBuildingMaster(false);
   };
