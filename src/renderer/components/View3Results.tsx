@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useBigTableStore } from '../state/BigTableStore';
 import { DataTable } from './DataTable';
 import { PaginationBar } from './PaginationBar';
+import { t } from '../../common/i18n';
 
 interface View3ResultsProps {}
 
@@ -119,37 +120,37 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontSize: 12 }}>
       <div style={{ padding: '4px 12px', borderBottom: '1px solid #ddd', display: 'flex', gap: 12, alignItems: 'center' }}>
-        <span>大表文件夹:</span>
+        <span>{t('view3.mergeFolderLabel')}</span>
         <select value={mergeFolder} onChange={e => setMergeFolder(e.target.value)} style={{ padding: '2px 4px', width: 180 }}>
-          <option value="">选择...</option>
+          <option value="">{t('common.choose')}</option>
           {folders.map(f => <option key={f} value={f}>{f}</option>)}
         </select>
         <button onClick={doMerge} disabled={merging || !mergeFolder}
           style={{ padding: '2px 12px', background: '#28a745', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
-          {merging ? '合并中...' : '合并生成'}
+          {merging ? t('common.merging') : t('view3.mergeGenerate')}
         </button>
         <button onClick={buildMaster} disabled={buildingMaster}
           style={{ padding: '2px 12px', background: '#007acc', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
-          {buildingMaster ? '构建中...' : '生成总表'}
+          {buildingMaster ? t('common.building') : t('view3.buildMaster')}
         </button>
         {mergeResult && (
           <>
-            <span style={{ fontSize: 11 }}>导入 {mergeData?.rowsInserted as number} 行</span>
+            <span style={{ fontSize: 11 }}>{t('view3.rowsImported', { count: mergeData?.rowsInserted as number })}</span>
             {noRuleFiles.length > 0 && (
               <span style={{ fontSize: 11, color: '#b00' }} title={noRuleFiles.map(s => s.file).join('\n')}>
-                · {noRuleFiles.length} 个无规则文件已跳过
+                {t('view3.noRuleSkipped', { count: noRuleFiles.length })}
               </span>
             )}
           </>
         )}
         <span style={{ width: 1, height: 16, background: '#ddd' }} />
-        <span>合并数据表:</span>
+        <span>{t('view3.mergeTableLabel')}</span>
         <select value={selectedTable} onChange={e => { setSelectedTable(e.target.value); setPage(0); }} style={{ padding: '2px 4px', width: 180 }}>
           {tables.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        <span style={{ color: '#666' }}>共 {total} 行</span>
+        <span style={{ color: '#666' }}>{t('view3.totalRows', { count: total })}</span>
         <button onClick={exportCSV} disabled={exporting} style={{ padding: '2px 8px', marginLeft: 'auto' }}>
-          {exporting ? '导出中...' : '导出 CSV'}
+          {exporting ? t('common.exporting') : t('view3.exportCsv')}
         </button>
       </div>
 
@@ -158,8 +159,8 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
       )}
 
       <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
-        {loading ? <div>加载中...</div>
-          : rows.length === 0 ? <div style={{ color: '#999', padding: 20 }}>暂无数据。请先选择文件夹并点击「合并生成」。</div>
+        {loading ? <div>{t('common.loading')}</div>
+          : rows.length === 0 ? <div style={{ color: '#999', padding: 20 }}>{t('view3.emptyState')}</div>
           : (
             <DataTable columns={columns} rows={rows} />
           )}

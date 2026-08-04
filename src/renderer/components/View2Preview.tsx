@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTableConfig } from '../state/TableConfigStore';
 import { PaginationBar } from './PaginationBar';
+import { t } from '../../common/i18n';
 
 interface PreviewCell { v: string | number | boolean | null; t?: string }
 interface PreviewSnapshot {
@@ -29,7 +30,7 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, active }) 
 
   const loadPreview = useCallback(async () => {
     if (!filePath) return;
-    setStatus('加载中...');
+    setStatus(t('common.loading'));
     setSnapshot(null);
     const res = await window.onworking.api.call('etl.preview', {
       file: filePath, sheetIndex, headerRow,
@@ -46,10 +47,10 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, active }) 
       }
       const first = s.totalRows > 0 ? page * PAGE_SIZE + 1 : 0;
       const last = page * PAGE_SIZE + s.rows.length;
-      const endNote = endRow ? `, 截止行: ${endRow}` : '';
-      setStatus(`已加载: 第 ${first}-${last} 行, 共 ${s.totalRows} 行, ${s.totalColumns} 列 (表头行: ${headerRow}${endNote})`);
+      const endNote = endRow ? t('view2.endNote', { endRow }) : '';
+      setStatus(t('view2.loadedSummary', { first, last, totalRows: s.totalRows, totalColumns: s.totalColumns, headerRow, endNote }));
     } else {
-      setStatus(`错误: ${res.error}`);
+      setStatus(t('view2.errorPrefix', { message: res.error ?? '' }));
     }
   }, [filePath, headerRow, sheetIndex, page, endRow]);
 
@@ -79,13 +80,13 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, active }) 
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '4px 12px', borderBottom: '1px solid #ddd', display: 'flex', gap: 12,
         alignItems: 'center', fontSize: 12, flexWrap: 'wrap' }}>
-        <span>文件: {filePath || '(未选择 — 请先在 View1 中选中文件)'}</span>
-        <span>表头行: <input type="number" value={headerRow} onChange={e => config?.setHeaderRow(Number(e.target.value))}
+        <span>{filePath ? t('view2.fileLabel', { filePath }) : t('view2.noFileSelected')}</span>
+        <span>{t('common.headerRow')} <input type="number" value={headerRow} onChange={e => config?.setHeaderRow(Number(e.target.value))}
           style={{ width: 50, padding: '2px 4px' }} /></span>
-        <span>截止行: <input type="number" value={endRow ?? ''} placeholder="末尾"
+        <span>{t('common.dataEndRow')} <input type="number" value={endRow ?? ''} placeholder={t('common.endOfRange')}
           onChange={e => config?.setEndRow(e.target.value === '' ? null : Number(e.target.value))}
           style={{ width: 60, padding: '2px 4px' }} /></span>
-        <button onClick={() => { void loadPreview(); }} style={{ padding: '2px 8px' }}>加载预览</button>
+        <button onClick={() => { void loadPreview(); }} style={{ padding: '2px 8px' }}>{t('view2.loadPreview')}</button>
         <span style={{ color: '#666' }}>{status}</span>
       </div>
 
@@ -126,7 +127,7 @@ export const View2Preview: React.FC<View2PreviewProps> = ({ filePath, active }) 
           </table>
         ) : (
           <div style={{ color: '#999', padding: 20, textAlign: 'center' }}>
-            {filePath ? '点击"加载预览"查看文件内容' : '请先在 View1 中选中文件'}
+            {filePath ? t('view2.previewHint') : t('view2.selectFileInView1')}
           </div>
         )}
       </div>

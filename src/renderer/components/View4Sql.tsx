@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { DataTable } from './DataTable';
 import { ResizableSidebar } from './ResizableSidebar';
 import { PaginationBar } from './PaginationBar';
+import { t } from '../../common/i18n';
 
 interface ColumnInfo {
   cid: number;
@@ -65,17 +66,17 @@ export const View4Sql: React.FC = () => {
           setPage(0);
           if (data.length > 0) setCols(Object.keys(data[0]));
         } else {
-          setError(res.error ?? '查询失败');
+          setError(res.error ?? t('view4.queryFailed'));
         }
       } else {
         // 写语句 → db.run,结果不是行而是 {changes, lastInsertRowid}
         const res = await window.onworking.api.call('db.run', { sql });
         if (res.success) {
           const r = (res.data ?? {}) as { changes?: number; lastInsertRowid?: number };
-          setWriteInfo(`影响 ${r.changes ?? 0} 行` + (r.lastInsertRowid ? `, lastInsertRowid: ${r.lastInsertRowid}` : ''));
+          setWriteInfo(t('view4.affectedRows', { changes: r.changes ?? 0 }) + (r.lastInsertRowid ? t('view4.lastInsertRowid', { rowid: r.lastInsertRowid }) : ''));
           loadTables(); // 表结构可能变了,刷新表浏览器
         } else {
-          setError(res.error ?? '执行失败');
+          setError(res.error ?? t('view4.executeFailed'));
         }
       }
     } catch (e) {
@@ -93,10 +94,10 @@ export const View4Sql: React.FC = () => {
       const res = await window.onworking.api.call('db.exportCsv', { sql });
       if (res.success) {
         const d = (res.data ?? {}) as { canceled?: boolean; rowCount?: number; filePath?: string };
-        if (d.canceled) setExportInfo('已取消导出');
-        else setExportInfo(`已导出 ${d.rowCount} 行 → ${d.filePath}`);
+        if (d.canceled) setExportInfo(t('view4.exportCancelled'));
+        else setExportInfo(t('view4.exportedRows', { rowCount: d.rowCount ?? 0, filePath: d.filePath ?? '' }));
       } else {
-        setError(res.error ?? '导出失败');
+        setError(res.error ?? t('view4.exportFailed'));
       }
     } catch (e) {
       setError((e as Error).message);
@@ -110,21 +111,21 @@ export const View4Sql: React.FC = () => {
     setError('');
     try {
       const res = await window.onworking.api.call('db.getStructure');
-      if (!res.success) { setError(res.error ?? '获取表结构失败'); return; }
+      if (!res.success) { setError(res.error ?? t('view4.getStructureFailed')); return; }
       const d = (res.data ?? {}) as {
         tables: { table: string; columns: { name: string; type: string; pk: boolean }[] }[];
       };
-      const lines: string[] = ['数据库表结构：'];
-      for (const t of d.tables) {
-        lines.push('', `表：${t.table}`, '字段：');
-        for (const c of t.columns) {
-          lines.push(`• ${c.name} (${c.type}${c.pk ? ', 主键' : ''})`);
+      const lines: string[] = [t('view4.dbStructureHeader')];
+      for (const table of d.tables) {
+        lines.push('', t('view4.tableLabel', { table: table.table }), t('view4.fieldLabel'));
+        for (const c of table.columns) {
+          lines.push(t('view4.fieldDetail', { name: c.name, type: c.type, pkSuffix: c.pk ? ', 主键' : '' }));
         }
       }
       await navigator.clipboard.writeText(lines.join('\n'));
-      setCopyInfo(`已复制 ${d.tables.length} 张表的表结构到剪贴板`);
+      setCopyInfo(t('view4.copiedStructure', { count: d.tables.length }));
     } catch (e) {
-      setError(`复制失败：${(e as Error).message}`);
+      setError(t('view4.copyFailed', { message: (e as Error).message }));
     }
   };
 
@@ -134,8 +135,8 @@ export const View4Sql: React.FC = () => {
     <div style={{ display: 'flex', height: '100%', fontSize: 12 }}>
       {/* 左:表浏览器 */}
       <ResizableSidebar initialWidth={220} minWidth={160} contentStyle={{ padding: 8, borderRight: '1px solid #eee' }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>🗂 表</div>
-        {tables.length === 0 && <div style={{ color: '#999' }}>暂无表</div>}
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>{t('view4.tableTitle')}</div>
+        {tables.length === 0 && <div style={{ color: '#999' }}>{t('view4.noTables')}</div>}
         {tables.map(t => (
           <div key={t} onClick={() => selectTable(t)}
             style={{ padding: '3px 6px', cursor: 'pointer', borderRadius: 3,
@@ -145,7 +146,7 @@ export const View4Sql: React.FC = () => {
         ))}
         {selectedTable && schema.length > 0 && (
           <div style={{ marginTop: 10 }}>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>列 ({schema.length})</div>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('view4.columnsTitle', { count: schema.length })}</div>
             {schema.map(c => (
               <div key={c.name} style={{ color: '#555', fontSize: 11, padding: '1px 0' }}>
                 {c.name} <span style={{ color: '#999' }}>({c.type})</span>
@@ -163,35 +164,35 @@ export const View4Sql: React.FC = () => {
             value={sql}
             onChange={e => setSql(e.target.value)}
             onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runQuery(); }}
-            placeholder={'SELECT * FROM "表名" WHERE ...\n(Ctrl+Enter 运行)'}
+            placeholder={t('view4.sqlPlaceholder')}
             spellCheck={false}
             style={{ width: '100%', height: 80, fontFamily: 'Consolas, monospace', fontSize: 12,
               padding: 8, boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: 3, resize: 'vertical' }}
           />
           <div style={{ color: '#999', fontSize: 11, marginTop: 4 }}>
-            💡 不会写 SQL？点「复制表结构」，把表结构贴给 AI（如 ChatGPT / DeepSeek）让它生成，再贴回此处执行。
+            {t('view4.sqlHint')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
             <button onClick={runQuery} disabled={running}
               style={{ padding: '5px 16px', background: '#007acc', color: 'white', border: 'none',
                 borderRadius: 3, cursor: running ? 'default' : 'pointer', opacity: running ? 0.6 : 1 }}>
-              {running ? '运行中...' : '▶ 运行 (Ctrl+Enter)'}
+              {running ? t('common.running') : t('view4.run')}
             </button>
             <button onClick={exportCsv} disabled={exporting}
               style={{ padding: '5px 16px', background: '#28a745', color: 'white', border: 'none',
                 borderRadius: 3, cursor: exporting ? 'default' : 'pointer', opacity: exporting ? 0.6 : 1 }}>
-              {exporting ? '导出中...' : '导出 CSV'}
+              {exporting ? t('common.exporting') : t('view4.exportCsv')}
             </button>
             <button onClick={copyStructure}
               style={{ padding: '5px 16px', background: '#6f42c1', color: 'white', border: 'none',
                 borderRadius: 3, cursor: 'pointer' }}
-              title="导出全部表名+列头,格式化为 AI 友好的文本复制到剪贴板">
-              复制表结构
+              title={t('view4.copyStructureTitle')}>
+              {t('view4.copyStructure')}
             </button>
             {copyInfo && <span style={{ color: '#2a7' }}>{copyInfo}</span>}
             {exportInfo && <span style={{ color: '#2a7' }}>{exportInfo}</span>}
             {rows !== null && (
-              <span style={{ color: '#666' }}>{rows.length} 行</span>
+              <span style={{ color: '#666' }}>{t('view4.rowCount', { count: rows.length })}</span>
             )}
             {writeInfo !== null && <span style={{ color: '#2a7' }}>{writeInfo}</span>}
           </div>
