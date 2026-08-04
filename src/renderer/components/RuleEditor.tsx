@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useTableConfig, useTableConfigStore } from '../state/TableConfigStore';
 import { SearchableSelect } from './SearchableSelect';
 import { useBigTable, useBigTableStore } from '../state/BigTableStore';
+import { t } from '../../common/i18n';
 
 interface RuleEditorProps {
   filePath: string;
@@ -18,7 +19,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
   const bigTable = useBigTable(selectedFolder);
   const bigTableFields = bigTable?.fields.map(f => f.name) ?? [];
 
-  if (!config) return <div style={{ fontSize: 12, padding: 8, color: '#999' }}>请先在左侧选择文件</div>;
+  if (!config) return <div style={{ fontSize: 12, padding: 8, color: '#999' }}>{t('ruleEditor.selectFileFirst')}</div>;
 
   const fields = config.fields;
   const headerRow = config.headerRow;
@@ -41,29 +42,29 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
   return (
     <div style={{ fontSize: 12, padding: 8 }}>
       <div style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ color: '#666' }}>工作表 (共 {sheetConfigs.length} 张):</span>
+        <span style={{ color: '#666' }}>{t('ruleEditor.sheetsLabel', { count: sheetConfigs.length })}</span>
         <select value={selectedSheetIndex} onChange={e => selectSheet(Number(e.target.value))}
-          title="切换工作表" style={{ padding: '2px 6px', fontSize: 12, width: 180 }}>
+          title={t('ruleEditor.switchSheet')} style={{ padding: '2px 6px', fontSize: 12, width: 180 }}>
           {sheetConfigs.map((sc, i) => (
             <option key={sc.sheetIndex} value={i}>{sc.sheetName}</option>
           ))}
         </select>
-        <span style={{ marginLeft: 8 }}>表头行: <input type="number" value={headerRow}
+        <span style={{ marginLeft: 8 }}>{t('common.headerRow')} <input type="number" value={headerRow}
           onChange={e => config.setHeaderRow(Number(e.target.value))}
           style={{ width: 50, padding: '2px 4px' }} /></span>
-        <span>截止行: <input type="number" value={config.endRow ?? ''}
+        <span>{t('common.dataEndRow')} <input type="number" value={config.endRow ?? ''}
           onChange={e => config.setEndRow(e.target.value === '' ? null : Number(e.target.value))}
-          placeholder="末尾" style={{ width: 70, padding: '2px 4px' }} /></span>
+          placeholder={t('common.endOfRange')} style={{ width: 70, padding: '2px 4px' }} /></span>
         <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
           <input type="checkbox" checked={config.merge}
             onChange={e => config.setMerge(e.target.checked)} />
-          合并进数据表
+          {t('common.mergeIntoTable')}
         </label>
         <button onClick={autoDetect} disabled={loading}
           style={{ padding: '4px 12px', background: '#007acc', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
-          {loading ? '检测中...' : '🔍 自动检测字段'}
+          {loading ? t('common.detecting') : t('ruleEditor.autoDetect')}
         </button>
-        {ruleName && <span style={{ color: '#666' }}>规则: {ruleName}</span>}
+        {ruleName && <span style={{ color: '#666' }}>{t('ruleEditor.ruleLabel', { name: ruleName })}</span>}
       </div>
 
       {fields.length > 0 && (
@@ -71,13 +72,13 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f5f5f5', textAlign: 'left' }}>
-                <th style={{ padding: 4, width: 36 }} title="全选/取消全选">
+                <th style={{ padding: 4, width: 36 }} title={t('ruleEditor.selectAllToggle')}>
                   <input type="checkbox"
                     checked={fields.length > 0 && fields.every(f => f.included)}
                     onChange={e => config.setAllIncluded(e.target.checked)} />
                 </th>
-                <th style={{ padding: 4 }}>字段名</th>
-                <th style={{ padding: 4 }}>映射字段</th>
+                <th style={{ padding: 4 }}>{t('common.fieldName')}</th>
+                <th style={{ padding: 4 }}>{t('common.mappedField')}</th>
               </tr>
             </thead>
             <tbody>
@@ -92,7 +93,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
                       value={f.mappedField}
                       options={bigTableFields}
                       onChange={val => config.setMappedField(i, val)}
-                      placeholder="映射到..."
+                      placeholder={t('ruleEditor.mapToPlaceholder')}
                     />
                   </td>
                 </tr>
@@ -103,18 +104,18 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
             <button onClick={saveRule}
               style={{ padding: '6px 16px', background: saved ? '#28a745' : '#007acc', color: 'white',
                 border: 'none', borderRadius: 3, cursor: 'pointer' }}>
-              {saved ? '✅ 已保存' : '💾 保存规则'}
+              {saved ? t('ruleEditor.saved') : t('ruleEditor.saveRule')}
             </button>
             <button onClick={onPreview}
               style={{ padding: '6px 16px', background: '#6c757d', color: 'white', border: 'none',
                 borderRadius: 3, cursor: 'pointer' }}>
-              预览 → View2
+              {t('ruleEditor.previewView2')}
             </button>
           </div>
         </>
       )}
       {!loading && fields.length === 0 && filePath && (
-        <p style={{ color: '#999' }}>选中文件后点击"自动检测字段"开始</p>
+        <p style={{ color: '#999' }}>{t('ruleEditor.autoDetectHint')}</p>
       )}
     </div>
   );

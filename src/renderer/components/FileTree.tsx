@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { triggerMenu } from '../context-menu/ContextMenuHost';
 import { FileClipboard } from '../state/FileClipboard';
+import { t } from '../../common/i18n';
 
 interface FileEntry { path: string; name: string; size: number; }
 interface FileTreeProps {
@@ -31,7 +32,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onSelectFile, selectedFile, 
     if (!clip) return;
     let res = await window.onworking.api.call('etl.copyFile', { sourcePath: clip.sourcePath, destDir: dir, overwrite: false });
     if (res.success && (res.data as { conflict?: boolean }).conflict) {
-      const ok = await window.onworking.confirm({ title: '文件已存在', message: '目标已有同名文件,是否覆盖?', okLabel: '覆盖' });
+      const ok = await window.onworking.confirm({ title: t('common.fileExists'), message: t('common.overwritePrompt'), okLabel: t('common.overwrite') });
       if (!ok) return;
       res = await window.onworking.api.call('etl.copyFile', { sourcePath: clip.sourcePath, destDir: dir, overwrite: true });
     }
@@ -40,7 +41,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onSelectFile, selectedFile, 
   };
 
   const runDelete = async (p: string): Promise<void> => {
-    const ok = await window.onworking.confirm({ title: '确认删除', message: '确定删除该文件?', okLabel: '删除' });
+    const ok = await window.onworking.confirm({ title: t('common.confirmDelete'), message: t('common.deleteFileConfirm'), okLabel: t('common.delete') });
     if (!ok) return;
     const res = await window.onworking.api.call('etl.deleteFile', { path: p });
     if (res.success) await refresh();
@@ -65,16 +66,16 @@ export const FileTree: React.FC<FileTreeProps> = ({ onSelectFile, selectedFile, 
     });
   };
 
-  if (loading) return <div style={{ padding: 8, fontSize: 12, color: '#999' }}>扫描中...</div>;
+  if (loading) return <div style={{ padding: 8, fontSize: 12, color: '#999' }}>{t('fileTree.scanning')}</div>;
 
   return (
     <div style={{ fontSize: 12 }}>
       <div style={{ padding: '4px 8px', fontWeight: 600, borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
-        <span>📁 源文件</span>
+        <span>{t('fileTree.sourceFiles')}</span>
         <button onClick={() => { void refresh(); }} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>🔄</button>
       </div>
       {files.length === 0 ? (
-        <div style={{ padding: 8, color: '#999' }}>source/ 下无 Excel 文件</div>
+        <div style={{ padding: 8, color: '#999' }}>{t('fileTree.empty')}</div>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {files.map(f => (

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useBigTableStore, useBigTable } from '../state/BigTableStore';
 import { triggerMenu } from '../context-menu/ContextMenuHost';
+import { t } from '../../common/i18n';
 
 interface FolderTreeProps {
   onSelectFile: (filePath: string) => void;
@@ -37,7 +38,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({ onSelectFile, selectedFi
     if (!clip) return;
     let res = await window.onworking.api.call('etl.copyFile', { sourcePath: clip.sourcePath, destDir: dir, overwrite: false });
     if (res.success && (res.data as { conflict?: boolean }).conflict) {
-      const ok = await window.onworking.confirm({ title: '文件已存在', message: '目标已有同名文件,是否覆盖?', okLabel: '覆盖' });
+      const ok = await window.onworking.confirm({ title: t('common.fileExists'), message: t('common.overwritePrompt'), okLabel: t('common.overwrite') });
       if (!ok) return;
       res = await window.onworking.api.call('etl.copyFile', { sourcePath: clip.sourcePath, destDir: dir, overwrite: true });
     }
@@ -47,7 +48,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({ onSelectFile, selectedFi
 
   const runDelete = async (targetPath: string, isFolder: boolean): Promise<void> => {
     const ok = await window.onworking.confirm({
-      title: '确认删除', message: isFolder ? '删除该大表将同时删除其数据,确定?' : '确定删除该文件?', okLabel: '删除',
+      title: t('common.confirmDelete'), message: isFolder ? t('folderTree.deleteFolderConfirm') : t('common.deleteFileConfirm'), okLabel: t('common.delete'),
     });
     if (!ok) return;
     const cmd = isFolder ? 'workspace.deleteFolder' : 'etl.deleteFile';
@@ -91,7 +92,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({ onSelectFile, selectedFi
   return (
     <div style={{ fontSize: 12 }}>
       <div style={{ padding: '4px 8px', fontWeight: 600, borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
-        <span>📁 大表</span>
+        <span>{t('folderTree.bigTables')}</span>
         <button onClick={() => setShowNew(!showNew)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>+</button>
       </div>
 
@@ -99,13 +100,13 @@ export const FolderTree: React.FC<FolderTreeProps> = ({ onSelectFile, selectedFi
         <div style={{ padding: '4px 8px', display: 'flex', gap: 4 }}>
           <input value={newName} onChange={e => setNewName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') void handleCreate(); }}
-            placeholder="大表名称" style={{ flex: 1, padding: '2px 4px', fontSize: 11, border: '1px solid #ccc', borderRadius: 2 }} autoFocus />
-          <button onClick={() => void handleCreate()} style={{ padding: '2px 6px', fontSize: 11 }}>确定</button>
+            placeholder={t('folderTree.folderNamePlaceholder')} style={{ flex: 1, padding: '2px 4px', fontSize: 11, border: '1px solid #ccc', borderRadius: 2 }} autoFocus />
+          <button onClick={() => void handleCreate()} style={{ padding: '2px 6px', fontSize: 11 }}>{t('folderTree.confirm')}</button>
         </div>
       )}
 
       {folders.length === 0 ? (
-        <div style={{ padding: 8, color: '#999' }}>暂无大表,点击 + 新建</div>
+        <div style={{ padding: 8, color: '#999' }}>{t('folderTree.empty')}</div>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {folders.map(name => {
@@ -129,7 +130,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({ onSelectFile, selectedFi
                     <span style={{ flex: 1 }}>📁 {name}</span>
                   )}
                   <span onClick={e => { e.stopPropagation(); onOpenSettings(name); }}
-                    style={{ fontSize: 12, cursor: 'pointer' }} title="大表设置">⚙</span>
+                    style={{ fontSize: 12, cursor: 'pointer' }} title={t('folderTree.settingsTitle')}>⚙</span>
                 </div>
                 {expanded && bt && (
                   <ul style={{ listStyle: 'none', padding: '0 0 0 20px', margin: 0 }}>

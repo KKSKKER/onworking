@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { triggerMenu } from '../context-menu/ContextMenuHost';
 import { matchGlob } from '../../common/utils/glob';
 import { useTableConfigStore } from '../state/TableConfigStore';
+import { t } from '../../common/i18n';
 
 interface RuleSummary { name: string; display: string; }
 
@@ -32,7 +33,7 @@ export const RuleList: React.FC = () => {
   };
 
   const deleteRule = async (name: string): Promise<void> => {
-    const ok = await window.onworking.confirm({ title: '确认删除', message: `确定删除规则 ${name}?`, okLabel: '删除' });
+    const ok = await window.onworking.confirm({ title: t('common.confirmDelete'), message: t('ruleList.deleteRuleConfirm', { name }), okLabel: t('common.delete') });
     if (!ok) return;
     const res = await window.onworking.api.call('rule.delete', { name });
     if (res.success) await refresh();
@@ -49,7 +50,7 @@ export const RuleList: React.FC = () => {
   return (
     <div style={{ fontSize: 12, marginTop: 16 }}>
       <div style={{ padding: '4px 8px', fontWeight: 600, borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
-        <span>📋 规则</span>
+        <span>{t('ruleList.rules')}</span>
         <button onClick={() => { void refresh(); }} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>🔄</button>
       </div>
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
