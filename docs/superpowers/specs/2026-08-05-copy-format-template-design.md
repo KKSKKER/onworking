@@ -74,7 +74,7 @@ interface TemplateDefinition {
 
 ### 新文件 `src/main/template/routes.ts`:`registerTemplateRoutes(router)`
 
-- `template.list` → `{ dir }` → `string[]`
+- `template.list` → `{ dir }` → `TemplateDefinition[]`(含完整 mappings,供应用直接用,与 `rule.list` 返回完整定义一致)
 - `template.save` → `{ dir, name, mappings }` → `{ ok }`
 - `template.delete` → `{ dir, name }` → `{ ok }`
 
@@ -99,10 +99,10 @@ interface TemplateDefinition {
 
 - Props:`config: TableConfig`、`bigTableFields: string[]`。
 - 用 `useBigTableStore` 取 `selectedFolder + workspaceRoot`,拼模板目录。
-- 状态:`templateName`(输入值)、`templates`(下拉列表)、`selected`(当前选中)、`message`(反馈)、`armedDelete`(删除确认态)。
+- 状态:`templateName`(输入值)、`templates`(下拉列表,存完整定义)、`selected`(当前选中名)、`message`(反馈)、`armedDelete`(删除确认态)。
 - 挂载/切换大表 → `template.list` 刷新;保存/删除后刷新。
 - 保存流程:`config.templateMappings()` → 空则提示「没有可保存的映射」;否则 `template.save` → 反馈「已保存模板「name」」。
-- 应用流程:`config.applyTemplate(mappings, bigTableFields)` → 反馈「已应用模板「name」:匹配 {matched} / {total} 条」。
+- 应用流程:从 `templates` 里取选中定义的 `mappings` → `config.applyTemplate(mappings, bigTableFields)` → 反馈「已应用模板「name」:匹配 {matched} / {total} 条」。
 - 删除:二步确认 → `template.delete`。
 
 ### `RuleEditor.tsx` 接线
