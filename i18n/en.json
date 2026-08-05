@@ -134,6 +134,21 @@
     "previewView2": "Preview → View2",
     "autoDetectHint": "Select a file, then click \"Auto-detect fields\" to begin"
   },
+  "copyFormat": {
+    "title": "Copy Format",
+    "templateName": "Template name",
+    "saveTemplate": "Save template",
+    "selectPlaceholder": "Select template...",
+    "applyTemplate": "Apply",
+    "deleteTemplate": "Delete",
+    "confirmDelete": "Confirm delete?",
+    "noBigTable": "Select a table first",
+    "saved": "Saved template \"{name}\"",
+    "applied": "Applied \"{name}\": {matched} / {total} matched",
+    "nothingToSave": "Nothing to save (no fields selected or mapped)",
+    "noTemplates": "No templates",
+    "nameRequired": "Enter a template name"
+  },
   "view2": {
     "fileLabel": "File: {filePath}",
     "noFileSelected": "(Not selected — select a file in View1 first)",

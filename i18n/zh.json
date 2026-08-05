@@ -134,6 +134,21 @@
     "previewView2": "预览 → View2",
     "autoDetectHint": "选中文件后点击\"自动检测字段\"开始"
   },
+  "copyFormat": {
+    "title": "复制格式",
+    "templateName": "模板名",
+    "saveTemplate": "保存模板",
+    "selectPlaceholder": "选择模板...",
+    "applyTemplate": "应用",
+    "deleteTemplate": "删除",
+    "confirmDelete": "确认删除?",
+    "noBigTable": "请先选择大表",
+    "saved": "已保存模板「{name}」",
+    "applied": "已应用模板「{name}」:匹配 {matched} / {total} 条",
+    "nothingToSave": "没有可保存的映射(未勾选字段或未选择映射)",
+    "noTemplates": "暂无模板",
+    "nameRequired": "请输入模板名"
+  },
   "view2": {
     "fileLabel": "文件: {filePath}",
     "noFileSelected": "(未选择 — 请先在 View1 中选中文件)",

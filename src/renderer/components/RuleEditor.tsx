@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useTableConfig, useTableConfigStore } from '../state/TableConfigStore';
 import { SearchableSelect } from './SearchableSelect';
+import { CopyFormat } from './CopyFormat';
 import { useBigTable, useBigTableStore } from '../state/BigTableStore';
 import { t } from '../../common/i18n';
 
@@ -41,6 +42,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ filePath, onPreview }) =
 
   return (
     <div style={{ fontSize: 12, padding: 8 }}>
+      <CopyFormat config={config} bigTableFields={bigTableFields} />
       <div style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ color: '#666' }}>{t('ruleEditor.sheetsLabel', { count: sheetConfigs.length })}</span>
         <select value={selectedSheetIndex} onChange={e => selectSheet(Number(e.target.value))}
