@@ -4,8 +4,6 @@
 
 OnWorking is a desktop application for turning scattered, similarly-formatted Excel/CSV files into clean, queryable SQLite tables. Instead of hand-editing spreadsheets, you describe how each file should be processed in a plain-YAML rule, and OnWorking merges everything into one table — with every row traceable back to the file, sheet, and row it came from.
 
-> **Note:** The app UI is currently in Chinese (中文界面).
-
 ---
 
 ## Why OnWorking?
@@ -147,7 +145,7 @@ sources:
     headerRow: 1                # 1-based row that holds the header
     endRow: 10374               # 1-based cutoff row (omit = read to the end)
 fields:
-  - sourceHeader: 日期          # column in the source file
+  - sourceHeader: DATE          # column in the source file
     outputName: date
     included: true
     order: 1
@@ -157,7 +155,7 @@ fields:
         excelSerial: true
         fallbackStrategy: "null"
         aiRationale: "Date column"
-  - sourceHeader: 金额          # amount column
+  - sourceHeader: AMOUNT          # amount column
     outputName: amount_cents
     included: true
     order: 2
