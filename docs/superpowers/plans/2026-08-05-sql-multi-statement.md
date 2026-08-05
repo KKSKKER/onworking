@@ -16,6 +16,7 @@
 - `db.batch` 不抛错,返回 `{ results, error? }` 保留部分结果;`db.query`/`db.run` 无参失败时抛错(前端走现有错误显示)。
 - 前端 `src/renderer/**` 不改。
 - 文案禁止硬编码中文进代码;本功能错误信息出现在 worker 错误消息里,可用中文字面量(与 worker 现有 `'DB not open'` 一致,非界面文案)。
+- **测试不用真实 better-sqlite3**:原生模块当前为 Electron(ABI 125)编译,vitest 跑在系统 Node(ABI 137)无法加载;重建会弄坏 Electron 应用。因此 `executeMulti` 用**假 Database 对象**测控制流,`lastReaderRows`/`aggregateRun` 为纯函数直接测;真实的 `db.iterate` 拆分/SQLite 语义由 better-sqlite3 保证、应用运行时验证。
 
 ---
 
