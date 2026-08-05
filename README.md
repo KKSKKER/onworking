@@ -1,3 +1,5 @@
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 # OnWorking
 
 > A transparent, rule-driven ETL desktop app that turns scattered Excel/CSV files into clean, queryable tables.
