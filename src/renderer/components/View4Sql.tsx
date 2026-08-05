@@ -19,7 +19,12 @@ interface ColumnInfo {
 // 分页渲染,每页 N 行,避免大结果集冻结界面(查询本身不限制)
 const PAGE_SIZE = 500;
 
-export const View4Sql: React.FC = () => {
+interface View4SqlProps {
+  /** 视图是否可见。常驻挂载(display 显隐),切回本视图时据此刷新表浏览器 */
+  active: boolean;
+}
+
+export const View4Sql: React.FC<View4SqlProps> = ({ active }) => {
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTable, setSelectedTable] = useState<string>('');
   const [schema, setSchema] = useState<ColumnInfo[]>([]);
@@ -41,6 +46,12 @@ export const View4Sql: React.FC = () => {
   };
 
   useEffect(() => { loadTables(); }, []);
+
+  // 切回本视图时重载表浏览器:View3 生成总表/合并后会往工作区 DB 同步新表,
+  // 常驻挂载状态下只有在这里拿到刷新时机。
+  useEffect(() => {
+    if (active) loadTables();
+  }, [active]);
 
   const selectTable = async (t: string): Promise<void> => {
     setSelectedTable(t);

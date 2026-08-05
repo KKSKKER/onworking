@@ -149,6 +149,7 @@
     "mergeGenerate": "Merge & Generate",
     "buildMaster": "Build Master Table",
     "rowsImported": "Imported {count} rows",
+    "masterBuilt": "Master table built",
     "noRuleSkipped": "· {count} files without rules skipped",
     "mergeTableLabel": "Merged table:",
     "exportCsv": "Export CSV",

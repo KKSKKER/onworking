@@ -135,7 +135,11 @@ export const View3Results: React.FC<View3ResultsProps> = () => {
         </button>
         {mergeResult && (
           <>
-            <span style={{ fontSize: 11 }}>{t('view3.rowsImported', { count: mergeData?.rowsInserted as number })}</span>
+            <span style={{ fontSize: 11 }}>
+              {mergeData?.rowsInserted !== undefined
+                ? t('view3.rowsImported', { count: mergeData.rowsInserted as number })
+                : t('view3.masterBuilt')}
+            </span>
             {noRuleFiles.length > 0 && (
               <span style={{ fontSize: 11, color: '#b00' }} title={noRuleFiles.map(s => s.file).join('\n')}>
                 {t('view3.noRuleSkipped', { count: noRuleFiles.length })}

@@ -149,6 +149,7 @@
     "mergeGenerate": "合并生成",
     "buildMaster": "生成总表",
     "rowsImported": "导入 {count} 行",
+    "masterBuilt": "总表已生成",
     "noRuleSkipped": "· {count} 个无规则文件已跳过",
     "mergeTableLabel": "合并数据表:",
     "exportCsv": "导出 CSV",

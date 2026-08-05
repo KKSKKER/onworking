@@ -63,7 +63,7 @@ export const App: React.FC = () => {
             <View3Results />
           </div>
           <div style={{ height: '100%', display: activeView === 'sql' ? 'block' : 'none' }}>
-            <View4Sql />
+            <View4Sql active={activeView === 'sql'} />
           </div>
         </div>
         <StatusBar status={status} fileCount={fileCount} lastETL={lastETL} />
