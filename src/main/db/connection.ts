@@ -5,6 +5,7 @@
 
 import { Worker } from 'node:worker_threads';
 import path from 'node:path';
+import type { BatchResult } from './executor';
 
 interface PendingRequest {
   resolve: (value: unknown) => void;
@@ -69,6 +70,11 @@ export class DBConnection {
 
   async run(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid: number }> {
     return this.send({ type: 'run', sql, params }) as Promise<{ changes: number; lastInsertRowid: number }>;
+  }
+
+  /** 执行多条 SQL 语句,返回逐条结果;失败时 error 字段含语句序号与已执行部分。 */
+  async batch(sql: string): Promise<{ results: BatchResult[]; error?: string }> {
+    return this.send({ type: 'batch', sql }) as Promise<{ results: BatchResult[]; error?: string }>;
   }
 
   async exec(sql: string): Promise<void> {

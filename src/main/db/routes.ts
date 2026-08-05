@@ -20,6 +20,11 @@ export function registerDBRoutes(router: APIRouter, db: DBConnection): void {
     return db.run(sql, args);
   }, { description: 'Execute a write statement (INSERT/UPDATE/DELETE etc.)' });
 
+  router.register('db.batch', async (params) => {
+    const { sql } = params as { sql: string };
+    return db.batch(sql);
+  }, { description: 'Execute multiple SQL statements, return per-statement results' });
+
   // 导出查询结果为 CSV。在主进程直接全量执行+写文件,不经过渲染层的显示行数限制,
   // 也不经 IPC 搬大结果集。未给 filePath 时弹系统保存对话框。
   router.register('db.exportCsv', async (params) => {
