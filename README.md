@@ -14,13 +14,12 @@ Financial and business data often arrives as dozens of similarly-structured Exce
 
 OnWorking addresses both problems:
 
-- **Rules, not scripts.** Each file/sheet is processed by a declarative YAML rule: which sheet to read, which row is the header, where the data ends, how each column maps to a table field, and which transforms to apply. Rules are plain text — reviewable by humans and readable/auditable by AI tools.
+- **Rules, not scripts.** Each file/sheet is processed by a declarative YAML rule: which sheet to read, which row is the header, where the data ends, and how each column maps to a table field. Rules are plain text — reviewable by humans and readable/auditable by AI tools.
 - **Lineage on every row.** Every merged row keeps its origin: `__source_file`, `__source_sheet`, `__source_row`, `__extracted_at`. No more "where did this number come from?"
 
 ## Features
 
-- **Rule-driven cleaning** — map source columns to table fields with typed coercion (string / number / date / enum / boolean) and row filtering.
-- **Money as integer cents** — amounts are stored as integers (×100) to avoid floating-point precision errors.
+- **Rule-driven extraction** — map source columns to table fields in plain YAML; clean and transform the data later with SQL.
 - **Row-level lineage** — `__source_file`, `__source_sheet`, `__source_row`, `__extracted_at` on every merged row.
 - **Folders as tables** — drop same-format files into a folder, one click merges them into a single table.
 - **Master tables** — aggregate every BigTable folder into one master table for the whole workspace.
@@ -37,7 +36,7 @@ OnWorking addresses both problems:
 | **Workspace** | A root directory for your data: `source/` for raw files, `.onworking/` for rules, settings, and the SQLite database. |
 | **BigTable** | A folder that defines one output table (`settings.json` = table name, columns, primary key) with its own `source/` folder and rule state. |
 | **Source file** | An Excel or CSV file placed in a BigTable's `source/` directory. |
-| **Rule** | A YAML file describing how one file/sheet maps into the table: sheet, header row, cutoff row, field mapping, transforms, merge strategy. |
+| **Rule** | A YAML file describing how one file/sheet maps into the table: sheet, header row, cutoff row, field mapping, and merge strategy. |
 
 ### Data flow
 
@@ -48,13 +47,12 @@ OnWorking addresses both problems:
     └───────────┬────────────┘        │ · sheet / header row          │
                 │                     │ · end row (cutoff)            │
                 └──────────┬──────────┤ · field mapping               │
-                           │          │ · transforms                  │
-                           ▼          │ · merge strategy              │
-               ┌────────────────────┐ └──────────────────────────────┘
+                           │          │ · merge strategy              │
+                           ▼          └──────────────────────────────┘
+               ┌────────────────────┐
                │     ETL pipeline   │
                │ scan → parse →     │
-               │ transform →        │
-               │ validate → insert  │
+               │ insert             │
                └─────────┬──────────┘
                          ▼
               SQLite big table (per folder)
@@ -129,7 +127,7 @@ A typical workflow:
 1. **Open a workspace** — pick a folder that will hold all your data.
 2. **Create a BigTable** — configure its name, columns (text / amount-cents / number / date), and optional primary key.
 3. **Add source files** — drop `.xlsx` / `.xls` / `.csv` files into the BigTable's `source/` folder.
-4. **Write a rule** — for each file, pick the sheet, the header row and the cutoff row, map each column to a table field, and choose transforms. Or click **auto-detect** to generate a starter rule from a sample.
+4. **Write a rule** — for each file, pick the sheet, the header row and the cutoff row, and map each column to a table field. Or click **auto-detect** to generate a starter rule from a sample.
 5. **Merge the folder** — all source files flow through their rules into one table, keeping row-level lineage.
 6. **Generate the master table & query** — aggregate all BigTable folders, then explore the data in the SQL workbench or export CSV.
 
@@ -151,39 +149,13 @@ fields:
     outputName: date
     included: true
     order: 1
-    transforms:
-      - kind: coerce_date
-        formats: ["YYYY/M/D", "YYYY-MM-DD"]
-        excelSerial: true
-        fallbackStrategy: "null"
-        aiRationale: "Date column"
-  - sourceHeader: AMOUNT          # amount column
-    outputName: amount_cents
+  - sourceHeader: AMOUNT        # column in the source file
+    outputName: amount
     included: true
     order: 2
-    transforms:
-      - kind: coerce_number
-        outputType: cents       # stored as integer cents (×100)
-        negativePattern: leading_dash
-        aiRationale: "Money in cents to avoid float errors"
 mergeStrategy:
   mode: append
 ```
-
-### Transforms
-
-Implemented transforms (applied in a fixed order):
-
-| Kind | Purpose |
-|---|---|
-| `coerce_string` | Trim, lowercase/uppercase, max length, null-value list. |
-| `coerce_number` | Parse numbers/amounts; handles thousands & decimal separators and negative patterns; `cents` output stores integer ×100. |
-| `coerce_date` | Parse dates from declared formats, including Excel serial numbers. |
-| `coerce_enum` | Map source values to canonical values. |
-| `coerce_boolean` | Map true/false value sets. |
-| `filter_rows` | Drop rows by operator (`eq`, `contains`, `regex`, `in`, …). |
-
-Every transform carries a required `aiRationale` field, so AI-generated rules must explain why each step was applied — keeping the pipeline transparent and auditable.
 
 ## Project structure
 
