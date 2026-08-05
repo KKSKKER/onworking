@@ -10,6 +10,9 @@ files:
 win:
   icon: build/icon.png
   target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
 mac:
   icon: build/icon.png
   target: dmg
