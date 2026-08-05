@@ -96,6 +96,36 @@ export class TableConfig {
     if (this.fields[i]) { this.fields[i].mappedField = field; this.saved = false; this.onChange(); }
   }
 
+  setIncluded(i: number, b: boolean): void {
+    if (this.fields[i]) { this.fields[i].included = b; this.saved = false; this.onChange(); }
+  }
+
+  /** 提取当前勾选且已映射的字段,作为模板二元组 [源字段, 大表字段]。 */
+  templateMappings(): Array<[string, string]> {
+    return this.fields
+      .filter(f => f.included && f.mappedField)
+      .map(f => [f.sourceHeader, f.mappedField] as [string, string]);
+  }
+
+  /**
+   * 应用模板:先取消全选,再逐条二元组匹配第一个 sourceHeader 相同且尚未匹配的字段;
+   * 目标字段在 validTargets 内才应用,否则跳过。
+   * 返回 { matched, skipped },并置 saved=false + onChange()。
+   */
+  applyTemplate(mappings: Array<[string, string]>, validTargets: string[]): { matched: number; skipped: number } {
+    this.setAllIncluded(false);
+    let matched = 0;
+    let skipped = 0;
+    for (const [src, tgt] of mappings) {
+      const idx = this.fields.findIndex(f => f.sourceHeader === src && !f.included);
+      if (idx < 0 || !validTargets.includes(tgt)) { skipped++; continue; }
+      this.setMappedField(idx, tgt);
+      this.setIncluded(idx, true);
+      matched++;
+    }
+    return { matched, skipped };
+  }
+
   setAllIncluded(checked: boolean): void {
     this.fields.forEach(f => { f.included = checked; });
     this.saved = false;

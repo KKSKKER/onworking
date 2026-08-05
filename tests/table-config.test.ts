@@ -66,3 +66,69 @@ describe('TableConfig.setHeaderRow', () => {
     expect(call).toHaveBeenCalledWith('rule.autoGenerate', expect.objectContaining({ headerRow: 3 }));
   });
 });
+
+describe('TableConfig.templateMappings', () => {
+  function withFields(): TableConfig {
+    const cfg = makeConfig();
+    cfg.fields = [
+      { sourceHeader: '发票号码', outputName: '', included: false, mappedField: '', typeGuess: 'string' },
+      { sourceHeader: '数电发票号码', outputName: '', included: true, mappedField: '发票代码', typeGuess: 'string' },
+      { sourceHeader: '金额', outputName: '', included: true, mappedField: '金额', typeGuess: 'cents' },
+      { sourceHeader: '税额', outputName: '', included: false, mappedField: '', typeGuess: 'string' },
+    ];
+    return cfg;
+  }
+
+  it('only includes checked fields with a mapping', () => {
+    expect(withFields().templateMappings()).toEqual([['数电发票号码', '发票代码'], ['金额', '金额']]);
+  });
+});
+
+describe('TableConfig.applyTemplate', () => {
+  function withFields(): TableConfig {
+    const cfg = makeConfig();
+    cfg.fields = [
+      { sourceHeader: '发票号码', outputName: '', included: false, mappedField: '', typeGuess: 'string' },
+      { sourceHeader: '数电发票号码', outputName: '', included: true, mappedField: '发票代码', typeGuess: 'string' },
+      { sourceHeader: '金额', outputName: '', included: true, mappedField: '金额', typeGuess: 'cents' },
+    ];
+    return cfg;
+  }
+
+  it('unchecks all fields first', () => {
+    const cfg = withFields();
+    cfg.applyTemplate([], ['发票代码', '金额']);
+    expect(cfg.fields.map(f => f.included)).toEqual([false, false, false]);
+  });
+
+  it('matches source fields and links to target', () => {
+    const cfg = withFields();
+    const result = cfg.applyTemplate([['数电发票号码', '发票代码'], ['金额', '金额']], ['发票代码', '金额']);
+    expect(result).toEqual({ matched: 2, skipped: 0 });
+    expect(cfg.fields[1]).toMatchObject({ included: true, mappedField: '发票代码' });
+    expect(cfg.fields[2]).toMatchObject({ included: true, mappedField: '金额' });
+  });
+
+  it('skips tuples whose target is not in the big table', () => {
+    const cfg = withFields();
+    const result = cfg.applyTemplate([['金额', '不存在的字段']], ['发票代码']);
+    expect(result).toEqual({ matched: 0, skipped: 1 });
+    expect(cfg.fields[2].included).toBe(false);
+  });
+
+  it('skips tuples whose source field does not exist', () => {
+    const cfg = withFields();
+    const result = cfg.applyTemplate([['不存在的源字段', '金额']], ['金额']);
+    expect(result).toEqual({ matched: 0, skipped: 1 });
+  });
+
+  it('matches the first field only when a source repeats', () => {
+    const cfg = withFields();
+    const result = cfg.applyTemplate(
+      [['数电发票号码', '发票代码'], ['数电发票号码', '销方识别号']],
+      ['发票代码', '销方识别号'],
+    );
+    expect(result).toEqual({ matched: 1, skipped: 1 });
+    expect(cfg.fields[1].mappedField).toBe('发票代码');
+  });
+});
