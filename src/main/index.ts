@@ -7,6 +7,7 @@ import { DBConnection } from './db/connection';
 import { registerDBRoutes } from './db/routes';
 import { registerEntityRoutes, loadEntitiesFromDir } from './entity/routes';
 import { registerRuleRoutes } from './rules/routes';
+import { registerTemplateRoutes } from './template/routes';
 import { registerETLRoutes } from './etl/routes';
 import { registerWorkspaceRoutes, WorkspaceManager, setActiveRoot } from './workspace/manager';
 import type { WorkspaceInfo } from './workspace/manager';
@@ -104,6 +105,7 @@ function initModules(ws: WorkspaceInfo): void {
   registerEntityRoutes(apiRouter, db);
   loadEntitiesFromDir(ws.entitiesDir);
   registerRuleRoutes(apiRouter, ws.rulesDir);
+  registerTemplateRoutes(apiRouter);
   registerETLRoutes(apiRouter, db, { sourceDir: ws.sourceDir, rulesDir: ws.rulesDir, root: ws.root });
 }
 
