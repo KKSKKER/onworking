@@ -124,9 +124,11 @@ export const View4Sql: React.FC<View4SqlProps> = ({ active }) => {
       const res = await window.onworking.api.call('db.getStructure');
       if (!res.success) { setError(res.error ?? t('view4.getStructureFailed')); return; }
       const d = (res.data ?? {}) as {
+        sqliteVersion?: string;
         tables: { table: string; columns: { name: string; type: string; pk: boolean }[] }[];
       };
       const lines: string[] = [t('view4.dbStructureHeader')];
+      if (d.sqliteVersion) lines.push(t('view4.sqliteVersion', { version: d.sqliteVersion }));
       for (const table of d.tables) {
         lines.push('', t('view4.tableLabel', { table: table.table }), t('view4.fieldLabel'));
         for (const c of table.columns) {

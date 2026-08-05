@@ -181,6 +181,7 @@
     "exportedRows": "已导出 {rowCount} 行 → {filePath}",
     "getStructureFailed": "获取表结构失败",
     "dbStructureHeader": "数据库表结构：",
+    "sqliteVersion": "SQLite 版本: {version}",
     "tableLabel": "表：{table}",
     "fieldLabel": "字段：",
     "fieldDetail": "• {name} ({type}{pkSuffix})",

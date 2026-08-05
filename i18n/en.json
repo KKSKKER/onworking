@@ -181,6 +181,7 @@
     "exportedRows": "Exported {rowCount} rows → {filePath}",
     "getStructureFailed": "Failed to get table structure",
     "dbStructureHeader": "Database table structure:",
+    "sqliteVersion": "SQLite version: {version}",
     "tableLabel": "Table: {table}",
     "fieldLabel": "Fields:",
     "fieldDetail": "• {name} ({type}{pkSuffix})",

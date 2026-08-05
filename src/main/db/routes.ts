@@ -61,6 +61,8 @@ export function registerDBRoutes(router: APIRouter, db: DBConnection): void {
   // 导出整个数据库的结构(仅表名 + 列头),供 AI 辅助 / 文档使用。
   // 排除 SQLite 系统表(sqlite_%)和应用内部下划线表(如 _lineage)。
   router.register('db.getStructure', async () => {
+    const versionRows = await db.execute('SELECT sqlite_version() AS v');
+    const sqliteVersion = (versionRows[0] as { v?: string })?.v ?? '';
     const tables = (await db.getTables()).filter(t => !t.startsWith('sqlite_') && !t.startsWith('_'));
     const structure = [];
     for (const table of tables) {
@@ -70,7 +72,7 @@ export function registerDBRoutes(router: APIRouter, db: DBConnection): void {
         columns: cols.map(c => ({ name: c.name, type: c.type, pk: c.pk > 0 })),
       });
     }
-    return { tables: structure };
+    return { sqliteVersion, tables: structure };
   }, { description: 'Export full database structure (table names + columns)' });
 
   router.register('db.getRowCount', async (params) => {
