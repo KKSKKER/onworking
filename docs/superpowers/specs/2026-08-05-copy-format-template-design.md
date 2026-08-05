@@ -92,7 +92,7 @@ interface TemplateDefinition {
 - `templateMappings(): [string, string][]` — 提取 `included && mappedField` 的 `[sourceHeader, mappedField]`。
 - `applyTemplate(mappings, validTargets): { matched, skipped }`
   1. `setAllIncluded(false)`(取消全选);
-  2. 逐条二元组:在 `fields` 找第一个 `sourceHeader === 源字段` 的字段;且目标字段在 `validTargets` 内 → `setMappedField(i, 目标)` + `setIncluded(i, true)`,否则跳过;
+  2. 逐条二元组:在 `fields` 找第一个 `sourceHeader === 源字段` **且尚未被匹配(`included=false`)** 的字段;且目标字段在 `validTargets` 内 → `setMappedField(i, 目标)` + `setIncluded(i, true)`,否则跳过;
   3. 置 `saved=false` + `onChange()`,返回统计。
 
 ### 新组件 `src/renderer/components/CopyFormat.tsx`
