@@ -1,10 +1,44 @@
 import { describe, expect, it } from 'vitest';
 import type Database from 'better-sqlite3';
-import { executeMulti, lastReaderRows, aggregateRun } from '../src/main/db/executor';
+import { splitStatements, executeMulti, lastReaderRows, aggregateRun } from '../src/main/db/executor';
 
 // better-sqlite3 是原生模块,当前为 Electron(ABI 125)编译,vitest 跑在系统 Node(ABI 137)
-// 无法加载。这里用假 Database 测 executor 的控制流;真实的 db.iterate 拆分/SQLite 语义
-// 由 better-sqlite3 保证,在应用运行时验证。
+// 无法加载。因此:
+// - splitStatements / lastReaderRows / aggregateRun 是纯函数,直接真测;
+// - executeMulti 用假 Database(prepare 返回预设语句)测控制流,拆分仍走真实 splitStatements。
+
+describe('splitStatements', () => {
+  it('splits multiple statements on top-level semicolons', () => {
+    expect(splitStatements('SELECT 1; SELECT 2;SELECT 3')).toEqual(['SELECT 1', 'SELECT 2', 'SELECT 3']);
+  });
+
+  it('ignores semicolons inside string literals', () => {
+    expect(splitStatements("INSERT INTO t VALUES ('a;b;c'); SELECT 1")).toEqual([
+      "INSERT INTO t VALUES ('a;b;c')",
+      'SELECT 1',
+    ]);
+  });
+
+  it('ignores semicolons inside quoted identifiers', () => {
+    expect(splitStatements('SELECT "a;b" FROM t; PRAGMA x')).toEqual(['SELECT "a;b" FROM t', 'PRAGMA x']);
+    expect(splitStatements('SELECT `a;b` FROM t; SELECT 1')).toEqual(['SELECT `a;b` FROM t', 'SELECT 1']);
+  });
+
+  it('keeps comments attached to their statement and drops comment-only segments', () => {
+    expect(splitStatements('-- hi\nSELECT 1; -- only\nSELECT 2')).toEqual(['-- hi\nSELECT 1', '-- only\nSELECT 2']);
+    expect(splitStatements('/* block */ ; SELECT 1')).toEqual(['SELECT 1']);
+  });
+
+  it('handles escaped quotes and trailing semicolon', () => {
+    expect(splitStatements("SELECT 'it''s; ok';")).toEqual(["SELECT 'it''s; ok'"]);
+  });
+
+  it('returns [] for empty/whitespace/comment-only input', () => {
+    expect(splitStatements('')).toEqual([]);
+    expect(splitStatements('   \n\t ')).toEqual([]);
+    expect(splitStatements('-- only comment')).toEqual([]);
+  });
+});
 
 interface FakeStmt {
   reader: boolean;
@@ -12,10 +46,15 @@ interface FakeStmt {
   run(): { changes: number; lastInsertRowid: number };
 }
 
+// prepare 按调用顺序返回预设语句(忽略传入的 SQL 文本)
 function fakeDb(statements: FakeStmt[]): Database.Database {
+  let idx = 0;
   return {
-    iterate(): IterableIterator<FakeStmt> {
-      return statements[Symbol.iterator]();
+    prepare(): FakeStmt {
+      const s = statements[idx];
+      if (!s) throw new Error('unexpected prepare call');
+      idx++;
+      return s as never;
     },
   } as unknown as Database.Database;
 }
@@ -32,13 +71,20 @@ describe('executeMulti', () => {
     expect((results[0] as { rows: unknown[] }).rows).toEqual([{ a: 'x', b: 1 }]);
   });
 
+  it('does not split on semicolons inside string literals', () => {
+    const db = fakeDb([{ reader: true, all: () => [{ a: 1 }] }]);
+    const { results, error } = executeMulti(db, "SELECT 'a;b'");
+    expect(error).toBeUndefined();
+    expect(results).toHaveLength(1); // 只 prepare 了一次
+  });
+
   it('executes multiple statements in order', () => {
     const db = fakeDb([
       runStmt,
       { reader: false, run: () => ({ changes: 2, lastInsertRowid: 7 }) },
       { reader: true, all: () => [{ a: 'x' }, { a: 'y' }] },
     ]);
-    const { results, error } = executeMulti(db, '...;...;...');
+    const { results, error } = executeMulti(db, 'CREATE; INSERT; SELECT');
     expect(error).toBeUndefined();
     expect(results).toHaveLength(3);
     expect(results[0]).toMatchObject({ kind: 'run', changes: 1, lastInsertRowid: 5 });

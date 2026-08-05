@@ -30,6 +30,7 @@
 - Consumes: 无(仅 better-sqlite3 类型)
 - Produces: 供 Task 2 使用
   - `export type BatchResult = { kind: 'rows'; columns: string[]; rows: Record<string, unknown>[] } | { kind: 'run'; changes: number; lastInsertRowid: number }`
+  - `export function splitStatements(sql: string): string[]` — SQL 感知拆分(见规格 §实现;better-sqlite3 无 db.iterate,须自研)
   - `export function executeMulti(db: Database.Database, sql: string): { results: BatchResult[]; error?: string }`
   - `export function lastReaderRows(results: BatchResult[]): Record<string, unknown>[]`
   - `export function aggregateRun(results: BatchResult[]): { changes: number; lastInsertRowid: number }`

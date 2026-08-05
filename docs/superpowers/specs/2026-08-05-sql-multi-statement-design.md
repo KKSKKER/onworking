@@ -13,8 +13,8 @@
 ## 已确认的决策
 
 1. 只改主进程,不动 renderer(`View4Sql.tsx` 等)。
-2. 拆分用 better-sqlite3 `db.iterate(sql)`(正确处理引号内分号/注释,跳过空语句)。
-3. 每条语句用 `stmt.reader` 区分"返回行"与"写语句"。
+2. 拆分用**自研 SQL 感知拆分器** `splitStatements`(better-sqlite3 的 Database 没有逐语句迭代 API,`db.exec` 只能整段执行且无结果):正确处理引号/标识符/注释,不误拆字符串内的分号,跳过空段与纯注释段。
+3. 每条语句用 `db.prepare(text)` 后 `stmt.reader` 区分"返回行"与"写语句"。
 4. 任一条失败即停;之前的语句已执行生效(标准自动提交语义),返回 `error = "第 N 条语句失败: …"`。
 5. 同时新增 `db.batch` 路由,返回完整逐条结果,给以后用。
 
@@ -27,12 +27,16 @@ export type BatchResult =
   | { kind: 'rows'; columns: string[]; rows: Record<string, unknown>[] }
   | { kind: 'run'; changes: number; lastInsertRowid: number };
 
+/** SQL 感知拆分多语句(顶层分号切分;跳过空段与纯注释段)。 */
+export function splitStatements(sql: string): string[];
+
 /** 拆分多语句逐条执行;失败返回 error(前面语句已生效),成功 error 为空。 */
 export function executeMulti(db: Database.Database, sql: string):
   { results: BatchResult[]; error?: string }
 ```
 
-- 用 `db.iterate(sql)` 逐条执行;`stmt.reader` 为真 → `stmt.all()` 收集 `{kind:'rows', columns, rows}`;否则 `stmt.run()` 收集 `{kind:'run', changes, lastInsertRowid}`。
+- `splitStatements` 逐字符扫描,维护"行注释/块注释/字符串/标识符引号"状态;在普通状态下遇 `;` 即切分。
+- `executeMulti` 对每条语句 `db.prepare(text)`;`stmt.reader` 为真 → `stmt.all()` 收集 `{kind:'rows', columns, rows}`;否则 `stmt.run()` 收集 `{kind:'run', changes, lastInsertRowid}`。
 - `catch` 时返回 `{ results, error: \`第 ${已执行条数+1} 条语句失败: ${err.message}\` }`。
 
 辅助函数:
@@ -78,21 +82,18 @@ export function aggregateRun(results: BatchResult[]): { changes: number; lastIns
 
 ## 边界情况 / 错误处理
 
-- 空字符串 / 纯注释 / 只有末尾分号 → `db.iterate` 产出 0 条 → `results: []`。
-- 引号/注释内含 `;` → `db.iterate` 正确识别,不误拆。
+- 空字符串 / 纯注释 / 只有末尾分号 → `splitStatements` 产出 0 条 → `results: []`。
+- 引号/标识符/注释内含 `;` → `splitStatements` 正确识别,不误拆。
 - 中途语句失败 → `error` 含语句序号;`db.query`/`db.run` 抛错给前端显示;`db.batch` 返回 error + 已执行部分结果。
-- 单语句行为与改前完全一致(1 条语句 → 迭代 1 次)。
+- 单语句行为与改前完全一致(1 条语句 → prepare 一次)。
 
 ## 测试
 
-`tests/db-executor.test.ts`,用 `new Database(':memory:')` 直接测 `executeMulti` / `lastReaderRows` / `aggregateRun`:
-
-- 单条 SELECT → 一个 `{kind:'rows'}` 结果,columns/rows 正确。
-- 多语句混合(建表 + INSERT + SELECT)→ 顺序与内容正确,结果为 3 条。
-- 引号内带 `;` 的字符串字面量不被拆分。
-- 中途某条失败 → 返回 error(带序号)且 error 前的语句已生效(如已 INSERT 的数据可查到)。
-- `lastReaderRows`:多条结果取最后一条 rows;无 rows 返回 `[]`。
-- `aggregateRun`:多写语句 changes 求和、lastInsertRowid 取最后。
+`tests/db-executor.test.ts`:
+- `splitStatements` 是纯函数,直接真测:多语句切分、字符串/标识符内分号不拆、注释处理、转义引号、空/纯注释输入。
+- `executeMulti` 用**假 Database**(`prepare` 返回预设语句,真实走 `splitStatements`)测控制流 —— better-sqlite3 是原生模块、当前为 Electron(ABI 125)编译,vitest 跑系统 Node(ABI 137)无法加载,重建会弄坏 Electron 应用,故不直接用真实库。
+- `lastReaderRows` / `aggregateRun`:纯函数直接测。
+- 真实的 `prepare` 执行/SQLite 语义由应用运行时验证。
 
 ## 不做(非目标)
 
