@@ -54,11 +54,14 @@ export class Workspace {
 }
 
 export class WorkspaceManager {
+  /** 最近工作区显示上限(开始页与顶栏共用) */
+  static readonly RECENT_LIMIT = 5;
+
   static listRecent(): WorkspaceMeta[] {
     try {
       if (!fs.existsSync(CONFIG_PATH)) return [];
       const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
-      return JSON.parse(raw) as WorkspaceMeta[];
+      return (JSON.parse(raw) as WorkspaceMeta[]).slice(0, WorkspaceManager.RECENT_LIMIT);
     } catch { return []; }
   }
 
@@ -82,7 +85,7 @@ export class WorkspaceManager {
     const list = WorkspaceManager.listRecent().filter(m => m.rootPath !== meta.rootPath);
     list.unshift(meta);
     fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(list.slice(0, 10), null, 2), 'utf-8');
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(list.slice(0, WorkspaceManager.RECENT_LIMIT), null, 2), 'utf-8');
   }
 }
 
