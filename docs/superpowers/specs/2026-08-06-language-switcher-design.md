@@ -28,7 +28,7 @@ TopBar 右侧(现有 flex 布局末尾)追加:
 ... [SQL 工作台]                     [语言: ▼ 中文 | English]
 ```
 
-- `<select>` 两选项「中文 / English」,值 = 当前语言(zh|en)。
+- select 前有标签「语言」(`topBar.language`,en 下显示 "Language"),再是 `<select>` 两选项「中文 / English」,值 = 当前语言(zh|en)。
 - 挂载时 `window.onworking.getLanguage()` 取当前语言作为选中值,取到前默认 zh。
 - `onChange` → `window.onworking.setLanguage(newLang)` → 主进程写文件并重启,渲染层无需后续处理。
 
@@ -64,7 +64,7 @@ ipcMain.handle('app:setLanguage', (_e, lang: string) => {
 | `lang.enName` | English | English |
 | `topBar.language` | 语言 | Language |
 
-`topBar.language` 为 select 前的可选小标签(保持双语一致性);若想更省空间可省去,只留 select。
+`topBar.language` 为 select 前的固定小标签(保持双语一致性,也向非技术用户点明用途)。
 
 ## 测试与验证
 
