@@ -10,6 +10,7 @@ declare global {
       pickFolder(): Promise<string | null>;
       showInFolder(fullPath: string): Promise<void>;
       getLanguage(): Promise<string>;
+      setLanguage(lang: string): Promise<void>;
       confirm(opts: { title: string; message: string; okLabel?: string }): Promise<boolean>;
       onOpenWorkspace(cb: (payload?: { rootPath?: string }) => void): () => void;
     };
