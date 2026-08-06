@@ -14,6 +14,7 @@ import type { WorkspaceInfo } from './workspace/manager';
 import { registerUI } from './ui/ipc';
 import { buildApplicationMenu } from './menu';
 import { setCatalog } from '../common/i18n';
+import { pickLanguage, writeLanguageFile } from './lang';
 
 // 装载界面文案(菜单/对话框/错误消息)。
 // 语言解析:打包后优先读用户数据目录 %APPDATA%/onworking/language.json(可写,用户在此切换);
@@ -31,7 +32,7 @@ function resolveLanguage(): string {
       // 去掉可能的 UTF-8 BOM(Windows 编辑器/Set-Content 会写入),否则 JSON.parse 抛错
       const raw = fs.readFileSync(p, 'utf8').replace(/^﻿/, '');
       const cfg = JSON.parse(raw) as { language?: string };
-      return cfg.language === 'en' ? 'en' : 'zh';
+      return pickLanguage(cfg.language);
     } catch { /* 该候选损坏,尝试下一个 */ }
   }
   return 'zh';
@@ -84,6 +85,15 @@ function serializeBigInt(_key: string, value: unknown): unknown {
 
 function setupIPC(router: APIRouter): void {
   ipcMain.handle('app:getLanguage', () => appLang);
+  ipcMain.handle('app:setLanguage', (_event, lang: string) => {
+    const target = pickLanguage(lang);
+    const file = app.isPackaged
+      ? path.join(app.getPath('userData'), 'language.json')
+      : path.join(__dirname, '../../../language.json');
+    writeLanguageFile(file, target);
+    app.relaunch();
+    app.exit(0);
+  });
   ipcMain.handle('api:call', async (_event, command: string, params?: Record<string, unknown>) => {
     try {
       const result = await router.call(command, params);
