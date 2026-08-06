@@ -1,4 +1,8 @@
 {
+  "lang": {
+    "zhName": "中文",
+    "enName": "English"
+  },
   "common": {
     "loading": "Loading...",
     "detecting": "Detecting...",
@@ -52,6 +56,7 @@
     "exportCsvTitle": "Export CSV"
   },
   "topBar": {
+    "language": "Language",
     "view1": "View1 Configuration",
     "view2": "View2 Preview",
     "view3": "View3 Results",
